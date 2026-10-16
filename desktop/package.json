@@ -1,0 +1,39 @@
+{
+  "name": "boutika-desktop",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Boutika — نظام إدارة المحل",
+  "author": "Boutika",
+  "main": "main.js",
+  "scripts": {
+    "prepare-app": "node ../tools/prepare-desktop.js",
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64 --publish never",
+    "build:linux": "electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "dz.boutika.desktop",
+    "productName": "Boutika",
+    "asar": false,
+    "files": ["main.js", "preload.js", "package.json", "boutika-server/**/*", "www/**/*", "node_modules/**/*"],
+    "directories": { "output": "dist" },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Boutika-${version}-${target}.${ext}"
+    },
+    "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Office" }
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  }
+}
