@@ -1,0 +1,21 @@
+{
+  "appId": "dz.boutik.v4",
+  "appName": "Boutik",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#1e3c72",
+      "showSpinner": false
+    }
+  }
+}

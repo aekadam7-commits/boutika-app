@@ -1,0 +1,7 @@
+services:
+  boutika:
+    build: .
+    ports: ["8787:8787"]
+    volumes:
+      - ./boutika-data:/data      # غيّر هذا المسار إلى قرص أكبر عند الحاجة
+    restart: unless-stopped
