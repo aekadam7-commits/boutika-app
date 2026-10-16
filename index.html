@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1e3c72">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Boutik v4</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="modeScreen" class="mode-screen">
+  <div class="mode-box">
+    <div class="mode-logo">🛒</div>
+    <h1>Boutik <span class="ver">v4</span></h1>
+    <p class="mode-sub">اختر طريقة التشغيل</p>
+    <div class="mode-cards">
+      <button class="mode-card" onclick="chooseMode('host')">
+        <div class="mode-icon">🖥️</div>
+        <div class="mode-name">جهاز رئيسي</div>
+        <div class="mode-desc">يخزّن البيانات ويخدم باقي الأجهزة</div>
+      </button>
+      <button class="mode-card" onclick="chooseMode('client')">
+        <div class="mode-icon">📱</div>
+        <div class="mode-name">جهاز فرعي</div>
+        <div class="mode-desc">يتصل بجهاز رئيسي عبر الشبكة المحلية</div>
+      </button>
+    </div>
+    <div id="modeNetwork" class="mode-network hidden">
+      <label class="lbl">📡 البحث عن الأجهزة الرئيسية...</label>
+      <div id="hostList" class="host-list"></div>
+      <button class="btn btn-info btn-block" onclick="scanForHosts()">🔄 إعادة البحث</button>
+      <label class="lbl">أو أدخل العنوان يدويًا</label>
+      <input id="manualHost" placeholder="192.168.1.10:8787" dir="ltr">
+      <button class="btn btn-primary btn-block" onclick="connectManual()">اتصال</button>
+    </div>
+    <div class="mode-foot">يمكنك تغيير الوضع لاحقًا من الإعدادات</div>
+  </div>
+</div>
+
+<div id="licenseScreen" class="license-screen hidden">
+  <div class="license-box">
+    <div class="license-logo">🔐</div>
+    <h2>تفعيل Boutika</h2>
+    <p id="licenseStatus" class="license-status"></p>
+    <div id="licenseInfo" class="license-info"></div>
+
+    <div class="lic-step">
+      <div class="lic-step-title"><span>1</span> رمز جهازك</div>
+      <p class="lic-hint">صوّر هذا الرمز أو شاركه مع مزوّد البرنامج ليرسل لك رمز التفعيل</p>
+      <div class="lic-qr"><canvas id="deviceQR" width="240" height="240"></canvas></div>
+      <div id="deviceIdDisplay" class="device-id" dir="ltr"></div>
+      <div class="lic-row">
+        <button class="btn btn-info" onclick="shareDeviceQR()">📤 مشاركة</button>
+        <button class="btn btn-light" onclick="saveDeviceQR()">💾 حفظ</button>
+        <button class="btn btn-light" onclick="copyDeviceId()">📋 نسخ</button>
+      </div>
+    </div>
+
+    <div class="lic-step">
+      <div class="lic-step-title"><span>2</span> أدخل رمز التفعيل</div>
+      <div class="lic-row">
+        <button class="btn btn-primary" onclick="startLicenseScan()">📷 مسح QR</button>
+        <button class="btn btn-primary" onclick="pickLicenseImage()">🖼️ صورة QR</button>
+      </div>
+      <input type="file" id="licenseFile" accept="image/*" class="hidden" onchange="onLicenseImage(this)">
+      <div id="licenseScanBox" class="lic-scan hidden">
+        <div id="licenseReader"></div>
+        <button class="btn btn-danger btn-block" onclick="stopLicenseScan()">إيقاف الكاميرا</button>
+      </div>
+      <label class="lbl">أو الصق كود الترخيص (للحاسوب)</label>
+      <textarea id="licenseCode" dir="ltr" class="code-input" rows="3" placeholder="B3-..."></textarea>
+      <div id="licenseError" class="err"></div>
+      <button class="btn btn-success btn-block" onclick="activateLicense()">🔑 تفعيل</button>
+    </div>
+
+    <button id="licenseContinue" class="btn btn-primary btn-block hidden" onclick="continueTrial()">▶ متابعة التجربة المجانية</button>
+    <button class="btn btn-light btn-block" onclick="closeLicenseScreen()">إغلاق</button>
+    <div class="foot">التحقق يتم محليًا — بدون إنترنت</div>
+  </div>
+</div>
+
+<div id="loginScreen" class="login-screen hidden">
+  <div class="login-box">
+    <div class="login-logo">🛒</div>
+    <h1>Boutik</h1>
+    <p class="login-sub">نظام إدارة المحل — v4</p>
+    <div id="netBadge" class="net-badge hidden"></div>
+    <label class="lbl">اسم المستخدم</label>
+    <input id="loginUser" placeholder="user" autocomplete="username">
+    <label class="lbl">كلمة السر</label>
+    <input id="loginPass" type="password" placeholder="••••" autocomplete="current-password">
+    <button class="btn btn-primary btn-block" onclick="doLogin()">دخول</button>
+    <div id="loginError" class="err"></div>
+    <div id="hostHint" class="host-hint"></div>
+  </div>
+</div>
+
+<div id="app" class="app">
+  <header>
+    <h2>🛒 Boutik <span id="shopNameHeader" class="shop-name"></span></h2>
+    <div class="user-info">
+      <span id="shiftBadge" class="shift-badge hidden">🟢 وردية</span>
+      <span id="netStatus" class="net-status"></span>
+      <span id="currentUser"></span>
+      <button onclick="openShareModal()" title="مشاركة التطبيق">📤</button>
+      <button onclick="openBackup()" title="نسخ احتياطي">💾</button>
+      <button onclick="toggleDark()" title="الوضع الليلي">🌓</button>
+      <select id="languageSelect" class="lang-sel" title="Language">
+        <option value="ar">العربية</option>
+        <option value="fr">Français</option>
+        <option value="en">English</option>
+      </select>
+      <button id="subscriptionBtn" onclick="showSubscription()" class="hidden">🔑</button>
+      <button onclick="logout()">خروج</button>
+    </div>
+  </header>
+  <div id="trialBar" class="trial-bar hidden"></div>
+
+  <nav id="mainNav"></nav>
+
+  <main>
+    <div id="tab-dashboard" class="tab-content">
+      <div id="storageWarning" style="display:none"></div>
+      <div class="stats">
+        <div class="stat"><div class="label">مبيعات اليوم</div><div class="value" id="statTodaySales">0</div></div>
+        <div class="stat"><div class="label">فواتير اليوم</div><div class="value" id="statTodayInvoices">0</div></div>
+        <div class="stat"><div class="label">المنتجات</div><div class="value" id="statProducts">0</div></div>
+        <div class="stat"><div class="label">ديون الزبائن</div><div class="value" id="statDebts">0</div></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="label">ربح اليوم</div><div class="value" id="statTodayProfit">0</div></div>
+        <div class="stat"><div class="label">قيمة المخزون</div><div class="value" id="statStockValue">0</div></div>
+      </div>
+      <div class="card" id="shiftCard"><h3>🕐 الوردية الحالية</h3><div id="shiftInfo"></div></div>
+      <div class="card"><h3>📡 حالة الشبكة</h3><div id="networkInfo"></div></div>
+      <div class="card"><h3>⚠️ تنبيهات المخزون</h3><div id="lowStockList"></div></div>
+      <div class="card"><h3>📅 منتجات قريبة الانتهاء</h3><div id="expiryList"></div></div>
+    </div>
+
+    <div id="tab-pos" class="tab-content hidden">
+      <div class="pos-grid">
+        <div class="card">
+          <h3>🔍 البحث / المسح</h3>
+          <div class="search-bar">
+            <input id="posSearch" placeholder="امسح الباركود أو اكتب الاسم..." oninput="searchPOS()">
+            <button class="btn btn-primary" onclick="openScanner('pos')">📷</button>
+          </div>
+          <div id="posResults"></div>
+          <div id="remoteScannerBar" style="margin:8px 0;display:none">
+            <button class="btn btn-info btn-block" onclick="startRemoteScanner()">📡 إرسال المسح إلى الحاسوب</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>🛒 السلة <span id="cartCount" class="cart-count">0</span></h3>
+          <div id="cartItems"></div>
+          <div id="cartSubtotal"></div>
+          <div id="cartDiscount"></div>
+          <div class="cart-total"><span>المجموع:</span><span id="cartTotal">0</span></div>
+          <label class="lbl">الزبون:</label>
+          <select id="posCustomer"><option value="">زبون عادي</option></select>
+          <div class="flex-actions" style="margin:8px 0">
+            <button class="btn btn-info btn-sm" onclick="addFreeItem()">➕ مادة حرة</button>
+            <button class="btn btn-warning btn-sm" onclick="addCashLoan()">💵 سلفة</button>
+            <button class="btn btn-success btn-sm" onclick="openCalculator()">🧮 حاسبة</button>
+            <button class="btn btn-danger btn-sm" onclick="openDiscountModal()">💸 خصم</button>
+            <button class="btn btn-primary btn-sm" onclick="createReservation()">📦 حجز</button>
+          </div>
+          <div class="payment-options">
+            <button class="active" data-pay="cash" onclick="setPayType('cash')">💵 نقدي</button>
+            <button data-pay="partial" onclick="setPayType('partial')">💰 جزئي</button>
+            <button data-pay="credit" onclick="setPayType('credit')">📝 دين</button>
+          </div>
+          <div id="partialField" class="hidden">
+            <input id="posPaid" type="number" placeholder="المبلغ المدفوع" value="0" min="0" inputmode="decimal">
+          </div>
+          <button class="btn btn-success btn-block" onclick="finalizeSale()">✅ إتمام البيع</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-products" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>📦 المنتجات</h3>
+          <div class="flex-actions">
+            <button class="btn btn-info" onclick="openCategoriesModal()">🏷️ الفئات</button>
+            <button class="btn btn-warning" onclick="openScanner('product')">📷</button>
+            <button class="btn btn-primary" onclick="openProductModal()">➕ جديد</button>
+          </div>
+        </div>
+        <div class="search-bar"><input id="prodSearch" placeholder="بحث..." oninput="renderProducts()"></div>
+        <div class="filters-row">
+          <select id="prodFilterCategory" onchange="renderProducts()"><option value="">كل الفئات</option></select>
+          <select id="prodFilterStatus" onchange="renderProducts()">
+            <option value="">كل الحالات</option>
+            <option value="low">⚠️ منخفضة</option>
+            <option value="out">❌ نفد</option>
+            <option value="expiring">📅 قريب الانتهاء</option>
+            <option value="expired">🚨 منتهي</option>
+          </select>
+        </div>
+        <div class="flex-actions" style="margin-bottom:12px">
+          <button class="btn btn-primary btn-sm" onclick="printInventoryList()">🖨️ جرد</button>
+          <button class="btn btn-success btn-sm" onclick="printBarcodeLabels()">🏷️ ملصقات</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>باركود</th><th>اسم</th><th>فئة</th><th>كمية</th><th>بيع</th><th>انتهاء</th><th></th></tr></thead>
+            <tbody id="productsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-customers" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>👥 الزبائن</h3>
+          <div class="flex-actions">
+            <button class="btn btn-primary btn-sm" onclick="printCustomersList()">🖨️</button>
+            <button class="btn btn-primary" onclick="openCustomerModal()">➕ جديد</button>
+          </div>
+        </div>
+        <div class="search-bar"><input id="custSearch" placeholder="بحث..." oninput="renderCustomers()"></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>اسم</th><th>هاتف</th><th>رصيد</th><th>خصم</th><th></th></tr></thead>
+          <tbody id="customersTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-suppliers" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>🚚 الموردين</h3>
+          <div class="flex-actions">
+            <button class="btn btn-primary btn-sm" onclick="printSuppliersList()">🖨️</button>
+            <button class="btn btn-primary" onclick="openSupplierModal()">➕ جديد</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>اسم</th><th>هاتف</th><th>رصيد</th><th></th></tr></thead>
+          <tbody id="suppliersTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-purchases" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>🛒 المشتريات</h3>
+          <button class="btn btn-primary" onclick="openPurchaseModal()">➕ فاتورة</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>#</th><th>تاريخ</th><th>مورد</th><th>إجمالي</th><th>حالة</th><th></th></tr></thead>
+          <tbody id="purchasesTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-invoices" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>🧾 فواتير البيع</h3>
+          <div class="flex-actions">
+            <button class="btn btn-info btn-sm" onclick="openShiftReport()">📊</button>
+            <button class="btn btn-primary btn-sm" onclick="printDailyReport()">🖨️</button>
+          </div>
+        </div>
+        <div class="search-bar"><input id="invSearch" placeholder="بحث..." oninput="renderInvoices()"></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>#</th><th>تاريخ</th><th>زبون</th><th>إجمالي</th><th>حالة</th><th></th></tr></thead>
+          <tbody id="invoicesTable"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-inventory" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>📋 الجرد</h3>
+          <button class="btn btn-primary" onclick="startInventorySession()">➕ جلسة</button>
+        </div>
+        <div id="inventoryContent"><div class="empty">لا توجد جلسة حالية.</div></div>
+      </div>
+    </div>
+
+    <div id="tab-expenses" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>💰 المصاريف</h3>
+        </div>
+        <div id="expensesList"></div>
+      </div>
+    </div>
+
+    <div id="tab-reservations" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>📦 الحجوزات</h3>
+        </div>
+        <div id="reservationsList"></div>
+      </div>
+    </div>
+
+    <div id="tab-reports" class="tab-content hidden">
+      <div class="card">
+        <h3>📈 التقارير</h3>
+        <div class="stats">
+          <div class="stat"><div class="label">مبيعات</div><div class="value" id="repTotalSales">0</div></div>
+          <div class="stat"><div class="label">أرباح</div><div class="value" id="repProfit">0</div></div>
+          <div class="stat"><div class="label">ديون</div><div class="value" id="repDebts">0</div></div>
+          <div class="stat"><div class="label">فواتير</div><div class="value" id="repInvoices">0</div></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="label">قيمة المخزون (بيع)</div><div class="value" id="repStockValue">0</div></div>
+          <div class="stat"><div class="label">قيمة المخزون (شراء)</div><div class="value" id="repStockCost">0</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📅 فترة</h3>
+        <div class="row">
+          <div><label class="lbl">من</label><input type="date" id="repDateFrom"></div>
+          <div><label class="lbl">إلى</label><input type="date" id="repDateTo"></div>
+        </div>
+        <button class="btn btn-primary" onclick="renderPeriodReport()">📊 عرض</button>
+        <button class="btn btn-info" onclick="printPeriodReport()">🖨️</button>
+        <div id="periodReport"></div>
+      </div>
+      <div class="card">
+        <h3>🏆 الأكثر مبيعاً</h3>
+        <div class="flex-actions" style="margin-bottom:8px">
+          <button class="btn btn-primary btn-sm" onclick="printTopProducts()">🖨️ طباعة</button>
+        </div>
+        <div id="topProducts"></div>
+      </div>
+      <div class="card">
+        <h3>📉 المنتجات الراكدة</h3>
+        <div class="flex-actions" style="margin-bottom:8px">
+          <button class="btn btn-warning btn-sm" onclick="printStagnantProducts()">🖨️ طباعة</button>
+        </div>
+        <div id="stagnantProducts"></div>
+      </div>
+      <div class="card">
+        <h3>⭐ أفضل الزبائن</h3>
+        <div class="flex-actions" style="margin-bottom:8px">
+          <button class="btn btn-primary btn-sm" onclick="printTopCustomers()">🖨️ طباعة</button>
+        </div>
+        <div id="topCustomers"></div>
+      </div>
+      <div class="card">
+        <h3>📦 تقارير المخزون</h3>
+        <div class="flex-actions" style="flex-wrap:wrap">
+          <button class="btn btn-danger btn-sm" onclick="printExpiredProducts()">🚨 المنتجات المنتهية</button>
+          <button class="btn btn-warning btn-sm" onclick="printStockMovements()">📜 حركات المخزون</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content hidden">
+      <div class="card">
+        <h3>🏪 المحل</h3>
+        <label class="lbl">الاسم</label><input id="setShopName">
+        <label class="lbl">العنوان</label><input id="setShopAddress">
+        <label class="lbl">الهاتف</label><input id="setShopPhone" type="tel">
+        <label class="lbl">RC / NIF</label><input id="setShopRC">
+        <button class="btn btn-primary" onclick="saveShopSettings()">💾</button>
+      </div>
+      <div class="card">
+        <h3>🧾 الفاتورة</h3>
+        <label class="lbl">بادئة بيع</label><input id="setInvPrefix">
+        <label class="lbl">بادئة شراء</label><input id="setPurPrefix">
+        <label class="lbl">العملة</label><input id="setCurrency">
+        <label class="lbl">TVA %</label><input id="setTaxRate" type="number" value="0">
+        <label class="lbl">تنبيه الانتهاء (أيام)</label><input id="setExpiryDays" type="number" value="30">
+        <button class="btn btn-primary" onclick="saveInvoiceSettings()">💾</button>
+      </div>
+      <div class="card">
+        <h3>🖨️ الطباعة</h3>
+        <label class="lbl">حجم الورق</label>
+        <select id="setPaperSize">
+          <option value="58">58mm</option>
+          <option value="80">80mm</option>
+          <option value="a4">A4</option>
+        </select>
+        <button class="btn btn-primary" onclick="savePrintSettings()">💾</button>
+      </div>
+      <div class="card">
+        <h3>🔊 إعدادات الماسح</h3>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+          <input type="checkbox" id="setScannerBeep" checked style="width:auto">
+          <span>صوت عند المسح</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+          <input type="checkbox" id="setScannerVibrate" checked style="width:auto">
+          <span>اهتزاز عند المسح</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+          <input type="checkbox" id="setScannerAvoidDup" checked style="width:auto">
+          <span>منع المسح المتكرر (2.5 ثانية)</span>
+        </label>
+        <button class="btn btn-primary" onclick="saveScannerSettings()">💾 حفظ</button>
+      </div>
+      <div class="card">
+        <h3>📤 مشاركة التطبيق</h3>
+        <p class="small" style="margin-bottom:10px">شارك رابط التحميل مع أصدقائك</p>
+        <button class="btn btn-primary btn-block" onclick="openShareModal()">
+          📱 إظهار QR + الرابط
+        </button>
+      </div>
+      <div class="card">
+        <h3>🗑️ إدارة البيانات</h3>
+        <div id="dataManagement"></div>
+      </div>
+      <div class="card"><h3>📡 الشبكة</h3><div id="netSettings"></div></div>
+      <div class="card">
+        <h3>👤 المستخدمون</h3>
+        <button class="btn btn-primary" onclick="renderUsersInSettings()">عرض/تعديل</button>
+        <div id="usersListSettings"></div>
+      </div>
+      <div class="card">
+        <h3>🔧 متقدم</h3>
+        <button class="btn btn-warning" onclick="changeMode()">🔄 تغيير الوضع</button>
+        <button class="btn btn-info" onclick="showSyncStatus()">📊 حالة المزامنة</button>
+      </div>
+    </div>
+
+    <div id="tab-contact" class="tab-content hidden">
+      <div class="card contact-card">
+        <div style="font-size:54px">📞</div>
+        <h2>تواصل معنا</h2>
+        <p>للمساعدة أو الإبلاغ عن مشكلة.</p>
+        <div class="contact-list">
+          <a href="mailto:aissaallel@gmail.com" class="contact-row"><span><strong>📧 البريد</strong><br><span dir="ltr">aissaallel@gmail.com</span></span><span>✉️</span></a>
+          <a href="tel:0776117083" class="contact-row"><span><strong>📱 الهاتف</strong><br><span dir="ltr">0776117083</span></span><span>📞</span></a>
+          <a href="https://wa.me/213776117083" target="_blank" class="contact-row"><span><strong>🟢 واتساب</strong><br><span dir="ltr">0776117083</span></span><span>💬</span></a>
+          <a href="https://www.facebook.com/abad.aissa.1" target="_blank" class="contact-row"><span><strong>🔵 فيسبوك</strong><br><span dir="ltr">@abad.aissa.1</span></span><span>f</span></a>
+          <a href="https://www.instagram.com/abad_aissa/" target="_blank" class="contact-row"><span><strong>📸 إنستغرام</strong><br><span dir="ltr">abad_aissa</span></span><span>◎</span></a>
+        </div>
+        <div class="contact-foot"><strong>مشرف تربية ولاية تيارت</strong></div>
+      </div>
+    </div>
+
+    <div id="tab-users" class="tab-content hidden">
+      <div class="card">
+        <div class="flex-head">
+          <h3>👤 المستخدمون</h3>
+          <button class="btn btn-primary" onclick="openUserModal()">➕</button>
+        </div>
+        <div class="table-wrap">
+          <table><thead><tr><th>مستخدم</th><th>دور</th><th></th></tr></thead>
+          <tbody id="usersTable"></tbody></table>
+        </div>
+      </div>
+      <div class="card"><h3>📝 سجل التدقيق</h3><div id="auditLog"></div></div>
+    </div>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-content" id="modalContent"></div></div>
+
+<div id="scannerOverlay" class="scanner-overlay hidden">
+  <div class="scanner-head">
+    <span id="scannerTitle">📷 مسح الباركود</span>
+    <button onclick="closeScanner()" class="scanner-close">✖</button>
+  </div>
+  <div id="scannerContainer"></div>
+  <div class="scanner-info">
+    <div id="scannerStatus">وجّه الكاميرا نحو الباركود...</div>
+    <div id="scannerLast" class="scanner-last"></div>
+  </div>
+  <button class="btn btn-danger scanner-finish" onclick="closeScanner()">إنهاء</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/core/idb-store.js"></script>
+<script type="boutika/defer" src="vendor/html5-qrcode.min.js"></script>
+<script type="boutika/defer" src="js/core/utils.js"></script>
+<script type="boutika/defer" src="js/core/i18n.js"></script>
+<script type="boutika/defer" src="js/core/store.js"></script>
+<script type="boutika/defer" src="js/core/db.js"></script>
+<script type="boutika/defer" src="js/core/net.js"></script>
+<script type="boutika/defer" src="js/core/sync.js"></script>
+<script type="boutika/defer" src="js/core/changelog.js"></script>
+<script type="boutika/defer" src="js/license/device.js"></script>
+<script type="boutika/defer" src="js/license/qr.js"></script>
+<script type="boutika/defer" src="js/license/license.js"></script>
+<script type="boutika/defer" src="js/modules/auth.js"></script>
+<script type="boutika/defer" src="js/modules/shifts.js"></script>
+<script type="boutika/defer" src="js/modules/dashboard.js"></script>
+<script type="boutika/defer" src="js/modules/pos.js"></script>
+<script type="boutika/defer" src="js/modules/products.js"></script>
+<script type="boutika/defer" src="js/modules/categories.js"></script>
+<script type="boutika/defer" src="js/modules/parties.js"></script>
+<script type="boutika/defer" src="js/modules/purchases.js"></script>
+<script type="boutika/defer" src="js/modules/invoices.js"></script>
+<script type="boutika/defer" src="js/modules/reports.js"></script>
+<script type="boutika/defer" src="js/modules/inventory.js"></script>
+<script type="boutika/defer" src="js/modules/expenses.js"></script>
+<script type="boutika/defer" src="js/modules/reservations.js"></script>
+<script type="boutika/defer" src="js/modules/users.js"></script>
+<script type="boutika/defer" src="js/modules/scanner.js"></script>
+<script type="boutika/defer" src="js/modules/backup.js"></script>
+<script type="boutika/defer" src="js/modules/share.js"></script>
+<script type="boutika/defer" src="js/modules/settings.js"></script>
+<script type="boutika/defer" src="js/app.js"></script>
+<script type="boutika/defer" src="js/boutika-glue.js"></script>
+
+</body>
+  </html>
