@@ -1,0 +1,16 @@
+node_modules/
+boutika-server/data/
+boutika-data/
+server/data/
+electron/dist/
+android/
+*.log
+.node-build/
+www/nodejs/
+desktop/www/
+desktop/boutika-server/
+desktop/dist/
+desktop/node_modules/
+
+# Private offline license generator (keep outside the repository)
+tools/license-generator/
