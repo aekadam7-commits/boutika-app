@@ -1,0 +1,115 @@
+name: Build Boutik v4
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install server deps
+        run: cd server && npm install
+      - name: Install electron deps
+        run: cd electron && npm install
+      - name: Build Windows
+        run: cd electron && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boutik-windows
+          path: electron/dist/**/*.exe
+          if-no-files-found: warn
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0 cmdline-tools;latest'
+          log-accepted-android-sdk-licenses: true
+
+      - name: Install root deps
+        run: npm install
+
+      - name: Add Android platform (if missing)
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          else
+            echo "android/ already exists, skipping"
+          fi
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Add camera permission
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ] && ! grep -q "android.permission.CAMERA" "$MANIFEST"; then
+            sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application|' "$MANIFEST"
+            echo "✅ Camera permission added"
+          else
+            echo "✅ Already present or manifest missing"
+          fi
+
+      - name: Copy app icons to Android
+        run: |
+          ICON="$GITHUB_WORKSPACE/www/icons/icon-512.png"
+          if [ ! -f "$ICON" ]; then
+            echo "⚠️ icon-512.png missing at www/icons/"
+            exit 0
+          fi
+          cd android/app/src/main/res
+          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            if [ -d "$dir" ]; then
+              cp -f "$ICON" "$dir/ic_launcher.png" 2>/dev/null || true
+              cp -f "$ICON" "$dir/ic_launcher_round.png" 2>/dev/null || true
+              cp -f "$ICON" "$dir/ic_launcher_foreground.png" 2>/dev/null || true
+            fi
+          done
+          echo "✅ Icons copied"
+
+      - name: Fix gradlew permissions
+        run: chmod +x android/gradlew
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/boutik.apk
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: android/app/build/outputs/apk/debug/boutik.apk
+          tag_name: build-${{ github.run_number }}
+          name: Boutik Build ${{ github.run_number }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boutik-android
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
