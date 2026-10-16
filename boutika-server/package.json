@@ -1,0 +1,14 @@
+{
+  "name": "boutika-server",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Boutika server — PC + phone (Termux), expandable storage",
+  "main": "src/server.js",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node src/server.js" },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}
