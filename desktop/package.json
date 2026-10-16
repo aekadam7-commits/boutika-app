@@ -15,17 +15,42 @@
     "appId": "dz.boutika.desktop",
     "productName": "Boutika",
     "asar": false,
-    "files": ["main.js", "preload.js", "package.json", "boutika-server/**/*", "www/**/*", "node_modules/**/*"],
-    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "boutika-server/**/*",
+      "www/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "Boutika-${version}-${target}.${ext}"
+      "artifactName": "Boutika-${version}-${arch}.${ext}"
     },
-    "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Office" }
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "build/icon.png",
+      "category": "Office"
+    }
   },
   "dependencies": {
     "cors": "^2.8.5",
