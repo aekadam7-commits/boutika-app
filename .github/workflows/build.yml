@@ -1,32 +1,42 @@
-name: Build Boutik v4
+name: Build Boutika (APK + EXE)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-desktop:
+  windows-exe:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install server deps
-        run: cd server && npm install
-      - name: Install electron deps
-        run: cd electron && npm install
-      - name: Build Windows
-        run: cd electron && npm run build
+
+      - name: Prepare desktop
+        run: node tools/prepare-desktop.js
+
+      - name: Install
+        working-directory: desktop
+        run: npm install
+
+      - name: Build EXE
+        working-directory: desktop
+        run: npm run build:win
+
       - uses: actions/upload-artifact@v4
         with:
-          name: boutik-windows
-          path: electron/dist/**/*.exe
-          if-no-files-found: warn
+          name: boutika-windows
+          path: desktop/dist/*.exe
+          if-no-files-found: error
 
-  build-android:
+  android-apk:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -39,77 +49,63 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0 cmdline-tools;latest'
-          log-accepted-android-sdk-licenses: true
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-      - name: Install root deps
-        run: npm install
-
-      - name: Add Android platform (if missing)
+      - name: Install Capacitor + Node.js plugin
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          else
-            echo "android/ already exists, skipping"
-          fi
+          npm install
+          npm install https://github.com/hampoelz/capacitor-nodejs/releases/download/v1.0.0-beta.7/capacitor-nodejs.tgz
 
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      - name: Add camera permission
+      - name: Embed server + capacitor config
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ] && ! grep -q "android.permission.CAMERA" "$MANIFEST"; then
-            sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <application|' "$MANIFEST"
-            echo "✅ Camera permission added"
-          else
-            echo "✅ Already present or manifest missing"
-          fi
+          cd boutika-server
+          npm install --omit=dev
+          cd ..
+          node tools/prepare-android.js pre
+          cd www/nodejs
+          npm install --omit=dev
 
-      - name: Copy app icons to Android
+      - name: Add Android platform
         run: |
-          ICON="$GITHUB_WORKSPACE/www/icons/icon-512.png"
-          if [ ! -f "$ICON" ]; then
-            echo "⚠️ icon-512.png missing at www/icons/"
-            exit 0
-          fi
-          cd android/app/src/main/res
-          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            if [ -d "$dir" ]; then
-              cp -f "$ICON" "$dir/ic_launcher.png" 2>/dev/null || true
-              cp -f "$ICON" "$dir/ic_launcher_round.png" 2>/dev/null || true
-              cp -f "$ICON" "$dir/ic_launcher_foreground.png" 2>/dev/null || true
-            fi
-          done
-          echo "✅ Icons copied"
+          [ -d android ] || npx cap add android
+          npx cap sync android
 
-      - name: Fix gradlew permissions
-        run: chmod +x android/gradlew
+      - name: Patch Android
+        run: |
+          node tools/prepare-android.js post
+          npx cap sync android
+          chmod +x android/gradlew
 
       - name: Build APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Rename APK
-        run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/boutik.apk
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: android/app/build/outputs/apk/debug/boutik.apk
-          tag_name: build-${{ github.run_number }}
-          name: Boutik Build ${{ github.run_number }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Boutika.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: boutik-android
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
+          name: boutika-android
+          path: Boutika.apk
+          if-no-files-found: error
+
+  release:
+    needs: [windows-exe, android-apk]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Boutika Build ${{ github.run_number }}
+          files: |
+            out/boutika-windows/*.exe
+            out/boutika-android/Boutika.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
