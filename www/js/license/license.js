@@ -10,8 +10,8 @@
 
 const BOUTIK_PUBLIC_KEY = {
   kty: 'EC', crv: 'P-256',
-  x: '8BKyWNBO5gX2Xxy5o6Xd5vdY3-hKcajqs70BKuwqBIk',
-  y: 'Uoa3DZj2Ba-elZtZ9glyuC3nYU_4AgI8NNaJoGuvxYA'
+  x: 'GJMDXiTkDjpUP05jz62Be8ap5_QDWXt-ZyQrF4t4xac',
+  y: 'Rz1VRxQiHGd5eAiJkaM0tQAqBqFr82LC5eBmPl-jjRE'
 };
 
 const LICENSE_STORAGE = 'boutik_v4_license';
