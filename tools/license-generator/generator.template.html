@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boutika — مولّد التراخيص</title>
+<style>
+:root{
+  --bg:#f3f5fb;--card:#ffffff;--card-2:#f7f9ff;--text:#14213d;--muted:#667089;--line:#e3e8f4;
+  --primary:#3b5bdb;--primary-2:#6741d9;--ok:#12a150;--warn:#e8890c;--bad:#d92d3a;
+  --shadow:0 10px 30px rgba(30,45,110,.10);--r:18px;
+}
+[data-theme="dark"]{
+  --bg:#0c1222;--card:#141c33;--card-2:#101830;--text:#eaf0ff;--muted:#9aa7c7;--line:#26314f;
+  --primary:#6f8cff;--primary-2:#9a7bff;--shadow:0 10px 30px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(700px 360px at 90% -5%,color-mix(in srgb,var(--primary) 22%,transparent),transparent),
+  radial-gradient(600px 340px at -5% 8%,color-mix(in srgb,var(--primary-2) 18%,transparent),transparent)}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 14px 60px}
+header.top{display:flex;align-items:center;gap:12px;margin:6px 0 18px}
+.logo{width:50px;height:50px;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--primary-2));display:grid;place-items:center;font-size:26px;box-shadow:var(--shadow)}
+.top h1{font-size:20px;line-height:1.2}.top small{color:var(--muted);font-size:12px}
+.top .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--card);border:1px solid var(--line)}
+.chip.ok{color:var(--ok)}.chip.warn{color:var(--warn)}.chip.bad{color:var(--bad)}
+.icon-btn{border:1px solid var(--line);background:var(--card);color:var(--text);width:40px;height:40px;border-radius:12px;font-size:18px;cursor:pointer}
+nav.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);padding:5px;border-radius:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+nav.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;padding:10px 6px;border-radius:12px;cursor:pointer;transition:.15s}
+nav.tabs button.on{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.card h3{font-size:15.5px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card h3 .n{width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12.5px}
+.card p.sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+.stack>*+*{margin-top:14px}
+label.l{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin:10px 0 5px}
+input,textarea,select{width:100%;font:inherit;color:var(--text);background:var(--card-2);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;outline:none;transition:.15s}
+input:focus,textarea:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 20%,transparent)}
+textarea{resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;direction:ltr;text-align:left}
+.mono{font-family:ui-monospace,Consolas,monospace;direction:ltr;text-align:left}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:12px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;background:var(--card-2);color:var(--text);border:1.5px solid var(--line);transition:.15s}
+.btn:hover{transform:translateY(-1px)}
+.btn.pri{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-color:transparent}
+.btn.ok{background:var(--ok);color:#fff;border-color:transparent}
+.btn.bad{background:var(--bad);color:#fff;border-color:transparent}
+.btn.sm{padding:6px 11px;font-size:12.5px;border-radius:10px}
+.btn.big{padding:14px 18px;font-size:16px;width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}
+.drop{border:2px dashed var(--line);border-radius:16px;padding:20px 12px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:var(--card-2)}
+.drop:hover,.drop.over{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--card-2))}
+.drop b{display:block;font-size:26px;margin-bottom:4px}
+.found{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--ok) 12%,transparent);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent);margin-top:10px;font-size:13px}
+.found .mono{font-weight:700;letter-spacing:.5px;word-break:break-all}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1;min-width:84px;border:1.5px solid var(--line);background:var(--card-2);color:var(--text);padding:9px 8px;border-radius:12px;font:inherit;font-weight:700;cursor:pointer}
+.seg button.on{border-color:transparent;background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff}
+.preview{margin-top:12px;padding:11px 13px;border-radius:12px;background:var(--card-2);border:1px dashed var(--line);font-size:13px;color:var(--muted)}
+.preview b{color:var(--text)}
+.result{text-align:center}
+.qrbox{display:inline-block;background:#fff;padding:12px;border-radius:18px;border:1px solid var(--line);margin:10px 0}
+.qrbox canvas{display:block;width:min(340px,78vw);height:auto;aspect-ratio:1}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;text-align:right;font-size:13px;margin:8px 0 12px;background:var(--card-2);padding:10px 14px;border-radius:12px}
+.meta span{color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:34px 10px}
+.empty b{display:block;font-size:34px;margin-bottom:6px}
+.warnbox{padding:11px 13px;border-radius:12px;font-size:13px;background:color-mix(in srgb,var(--warn) 13%,transparent);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);margin-bottom:12px}
+.badbox{background:color-mix(in srgb,var(--bad) 12%,transparent);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.okbox{background:color-mix(in srgb,var(--ok) 12%,transparent);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--muted);font-size:12px}
+.tbl{overflow-x:auto}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+.tag.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.tag.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.tag.inf{background:color-mix(in srgb,var(--primary) 15%,transparent);color:var(--primary)}
+.hidden{display:none!important}
+.scanbox{margin-top:10px}#reader{width:100%;border-radius:12px;overflow:hidden;background:#000}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(30px);background:#111827;color:#fff;padding:10px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.pubkey{font-size:11.5px;word-break:break-all;background:var(--card-2);padding:10px;border-radius:12px;border:1px solid var(--line)}
+#qrHolder{position:fixed;top:0;left:0;width:300px;height:300px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="logo">🔐</div>
+  <div><h1>مولّد تراخيص Boutika</h1><small>إصدار رموز التفعيل — دون إنترنت</small></div>
+  <div class="sp"></div>
+  <span id="keyChip" class="chip warn">🔑 لا يوجد مفتاح</span>
+  <button class="icon-btn" id="themeBtn" title="الوضع الليلي">🌓</button>
+</header>
+
+<nav class="tabs">
+  <button data-tab="issue" class="on">✨ إصدار ترخيص</button>
+  <button data-tab="history">🗂️ السجل <span id="histCount" class="tag inf">0</span></button>
+  <button data-tab="keys">🔑 المفاتيح</button>
+</nav>
+
+<!-- ================= إصدار ================= -->
+<section id="tab-issue">
+  <div id="issueKeyWarn" class="warnbox hidden"></div>
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <h3><span class="n">1</span> رمز جهاز الزبون</h3>
+        <p class="sub">ارفع صورة الـ QR التي أرسلها الزبون، أو الصقها (Ctrl+V)، أو امسحها بالكاميرا، أو الصق النص.</p>
+        <div class="drop" id="drop"><b>📥</b>اسحب صورة QR هنا · اضغط للاختيار · أو الصق صورة</div>
+        <input type="file" id="devFile" accept="image/*" class="hidden">
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="camBtn">📷 مسح بالكاميرا</button>
+          <button class="btn" id="pasteBtn">📋 لصق من الحافظة</button>
+        </div>
+        <div id="scanBox" class="scanbox hidden"><div id="reader"></div><button class="btn bad sm" id="camStop" style="margin-top:8px">إيقاف الكاميرا</button></div>
+        <label class="l">أو الصق رمز الجهاز نصًّا</label>
+        <textarea id="devText" rows="2" placeholder="BTK1:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"></textarea>
+        <div id="devFound" class="found hidden"><span>✅</span><div><div style="color:var(--muted);font-size:12px">الجهاز</div><div class="mono" id="devShow"></div></div></div>
+        <div id="devErr" class="warnbox badbox hidden" style="margin-top:10px"></div>
+        <div id="devHist" class="warnbox hidden" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="n">2</span> بيانات الترخيص</h3>
+        <label class="l">اسم الزبون / المحل</label>
+        <input id="custName" maxlength="40" placeholder="مثال: سوبيريت الأمل">
+        <label class="l">الهاتف (للسجل فقط — لا يدخل في الكود)</label>
+        <input id="custPhone" class="mono" inputmode="tel" placeholder="05 / 06 / 07 ...">
+        <label class="l">المدّة</label>
+        <div class="seg" id="plans">
+          <button data-p="m1" data-d="30">شهر</button>
+          <button data-p="m3" data-d="90">3 أشهر</button>
+          <button data-p="m6" data-d="180">6 أشهر</button>
+          <button data-p="y1" data-d="365" class="on">سنة</button>
+          <button data-p="life" data-d="0">دائم ♾️</button>
+          <button data-p="custom" data-d="-1">مخصّص</button>
+        </div>
+        <div id="customBox" class="hidden"><label class="l">عدد الأيام</label><input id="customDays" type="number" min="1" max="3650" value="45"></div>
+        <label class="l">تاريخ البداية</label>
+        <input id="startDate" type="date">
+        <div class="preview" id="preview"></div>
+      </div>
+
+      <button class="btn pri big" id="makeBtn">✨ إنشاء الترخيص</button>
+    </div>
+
+    <div>
+      <div class="card result" id="resultCard">
+        <div class="empty" id="resultEmpty"><b>🎫</b>سيظهر هنا رمز التفعيل بعد الإنشاء</div>
+        <div id="resultBody" class="hidden">
+          <h3 style="justify-content:center">✅ تم إنشاء الترخيص</h3>
+          <div class="qrbox"><canvas id="licCanvas"></canvas></div>
+          <div class="meta" id="resMeta"></div>
+          <div class="row">
+            <button class="btn pri" id="dlPng">💾 حفظ صورة QR</button>
+            <button class="btn" id="shPng">📤 مشاركة</button>
+          </div>
+          <label class="l" style="text-align:right">الكود النصّي (للحاسوب)</label>
+          <textarea id="resCode" rows="4" readonly></textarea>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="cpCode">📋 نسخ الكود</button>
+            <button class="btn" id="dlTxt">📄 ملف نصي</button>
+          </div>
+          <p id="selfCheck" class="sub" style="margin-top:12px"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= السجل ================= -->
+<section id="tab-history" class="hidden">
+  <div class="card">
+    <div class="row" style="margin-bottom:12px">
+      <input id="histSearch" placeholder="🔍 بحث بالاسم أو الهاتف أو الجهاز">
+      <button class="btn sm" id="histExport">⬇️ تصدير JSON</button>
+      <button class="btn sm" id="histCsv">⬇️ CSV</button>
+      <button class="btn sm" id="histImport">⬆️ استيراد</button>
+      <input type="file" id="histFile" accept="application/json" class="hidden">
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>الزبون</th><th>الجهاز</th><th>الخطة</th><th>أُصدر</th><th>ينتهي</th><th>الحالة</th><th></th></tr></thead>
+      <tbody id="histBody"></tbody>
+    </table></div>
+    <div id="histEmpty" class="empty hidden"><b>🗂️</b>لا توجد تراخيص مسجّلة بعد</div>
+    <p class="sub" style="margin-top:12px">السجل محفوظ في هذا المتصفح فقط. صدّره دوريًا كنسخة احتياطية.</p>
+  </div>
+</section>
+
+<!-- ================= المفاتيح ================= -->
+<section id="tab-keys" class="hidden">
+  <div class="grid">
+    <div class="stack">
+      <div class="card">
+        <h3>🔑 مفتاح التوقيع</h3>
+        <p class="sub">المفتاح الخاص هو ما يمنحك القدرة على إصدار التراخيص. من يملكه يستطيع إصدار تراخيص غير محدودة — احفظ منه نسخة احتياطية ولا تشاركه.</p>
+        <div id="keyStatus" class="warnbox"></div>
+        <div id="unlockBox" class="hidden">
+          <label class="l">كلمة سر المفتاح</label>
+          <div class="row"><input id="unlockPw" type="password" placeholder="••••••"><button class="btn pri" id="unlockBtn">🔓 فتح</button></div>
+        </div>
+        <label class="l">كلمة سر لحماية المفتاح (اختياري — عند الحفظ/التصدير)</label>
+        <input id="keyPw" type="password" placeholder="اتركها فارغة لعدم التشفير">
+        <div class="row" style="margin-top:12px">
+          <button class="btn pri" id="genKey">✨ توليد زوج مفاتيح جديد</button>
+          <button class="btn" id="impKey">⬆️ استيراد مفتاح خاص</button>
+          <button class="btn" id="expKey">💾 نسخة احتياطية</button>
+        </div>
+        <input type="file" id="keyFile" accept="application/json,.json,.txt" class="hidden">
+        <label class="l">أو الصق المفتاح الخاص (JWK) هنا ثم اضغط استيراد</label>
+        <textarea id="keyPaste" rows="3" placeholder='{"kty":"EC","crv":"P-256","x":"...","y":"...","d":"..."}'></textarea>
+        <button class="btn bad sm" id="delKey" style="margin-top:12px">🗑️ حذف المفتاح من هذا المتصفح</button>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3>🧩 المطابقة مع التطبيق</h3>
+        <p class="sub">يتحقق التطبيق من الأكواد بالمفتاح العام المكتوب في <span class="mono">www/js/license/license.js</span>. يجب أن يطابق مفتاحك الخاص.</p>
+        <div id="matchBox" class="warnbox"></div>
+        <label class="l">المفتاح العام لمفتاحك الحالي</label>
+        <div class="pubkey mono" id="pubShow">—</div>
+        <button class="btn sm" id="cpPub" style="margin-top:10px">📋 نسخ سطر BOUTIK_PUBLIC_KEY</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+<div id="toast"></div>
+<div id="qrHolder"></div>
+
+<script>/*__HTML5QRCODE__*/</script>
+<script>/*__BOUTIKQR__*/</script>
+<script>
+'use strict';
+/* ============================================================
+   Boutika License Generator — يعمل محليًا بالكامل
+   صيغة الكود:  B3-<payload base64url>-<signature base64url(64B)>
+   payload = {"d":deviceId,"s":startMs,"e":endMs?,"t":plan,"n":name?}
+   ============================================================ */
+const APP_PUBLIC = {
+  kty: 'EC', crv: 'P-256',
+  x: '8BKyWNBO5gX2Xxy5o6Xd5vdY3-hKcajqs70BKuwqBIk',
+  y: 'Uoa3DZj2Ba-elZtZ9glyuC3nYU_4AgI8NNaJoGuvxYA'
+};
+const DAY = 86400000;
+const KEY_STORE = 'btk_gen_key_v1';
+const HIST_STORE = 'btk_gen_history_v1';
+const PLAN_AR = { m1: 'شهري', m3: '3 أشهر', m6: '6 أشهر', y1: 'سنوي', life: 'دائم', custom: 'مخصّص' };
+
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const enc = s => new TextEncoder().encode(s);
+const dec = b => new TextDecoder().decode(b);
+
+function b64u(bytes) {
+  let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function unb64u(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '=';
+  const bin = atob(str); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+function fmtDate(ms) { return new Date(ms).toLocaleDateString('ar-DZ-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+function groupId(id) { return id.match(/.{4}/g).join('-'); }
+async function copyText(t, okMsg) {
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  toast(okMsg || '✅ تم النسخ');
+}
+function download(name, blobOrText, type) {
+  const blob = blobOrText instanceof Blob ? blobOrText : new Blob([blobOrText], { type: type || 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ---------------- السمة ---------------- */
+(function () {
+  const saved = localStorage.getItem('btk_gen_theme');
+  const dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  $('#themeBtn').onclick = () => {
+    const d = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = d ? 'dark' : 'light';
+    localStorage.setItem('btk_gen_theme', d ? 'dark' : 'light');
+  };
+})();
+
+/* ---------------- التبويبات ---------------- */
+$$('nav.tabs button').forEach(b => b.onclick = () => {
+  $$('nav.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  ['issue', 'history', 'keys'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== b.dataset.tab));
+  if (b.dataset.tab === 'history') renderHistory();
+});
+
+/* ============================================================
+   المفاتيح
+   ============================================================ */
+let signKey = null;          // CryptoKey للتوقيع (في الذاكرة فقط)
+let curJwk = null;           // JWK الخاص الحالي (في الذاكرة فقط)
+let locked = false;          // مخزَّن لكنه مشفّر ولم يُفتح
+
+async function deriveAes(pw, salt) {
+  const base = await crypto.subtle.importKey('raw', enc(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256' }, base,
+    { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function packKey(jwk, pw) {
+  if (!pw) return { v: 1, enc: false, jwk };
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await deriveAes(pw, salt), enc(JSON.stringify(jwk)));
+  return { v: 1, enc: true, salt: b64u(salt), iv: b64u(iv), ct: b64u(new Uint8Array(ct)) };
+}
+async function unpackKey(blob, pw) {
+  if (blob && blob.kty && blob.d) return blob;                  // JWK خام
+  if (blob && !blob.enc && blob.jwk) return blob.jwk;
+  if (blob && blob.enc) {
+    if (!pw) throw new Error('هذا الملف مشفّر — أدخل كلمة السر');
+    try {
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64u(blob.iv) }, await deriveAes(pw, unb64u(blob.salt)), unb64u(blob.ct));
+      return JSON.parse(dec(pt));
+    } catch (e) { throw new Error('كلمة السر غير صحيحة'); }
+  }
+  throw new Error('ملف المفتاح غير مفهوم');
+}
+async function useJwk(jwk) {
+  if (!jwk || jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d || !jwk.x || !jwk.y)
+    throw new Error('ليس مفتاحًا خاصًّا صالحًا (P-256 مع الحقل d)');
+  const clean = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d };
+  signKey = await crypto.subtle.importKey('jwk', { ...clean, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  curJwk = clean; locked = false;
+}
+async function saveKey(jwk, pw) {
+  localStorage.setItem(KEY_STORE, JSON.stringify(await packKey(jwk, pw)));
+}
+function storedBlob() { try { return JSON.parse(localStorage.getItem(KEY_STORE) || 'null'); } catch (e) { return null; } }
+
+async function bootKey() {
+  const b = storedBlob();
+  if (!b) { signKey = null; curJwk = null; locked = false; }
+  else if (b.enc) { signKey = null; curJwk = null; locked = true; }
+  else { try { await useJwk(b.jwk); } catch (e) { signKey = null; } }
+  refreshKeyUI();
+}
+
+function refreshKeyUI() {
+  const chip = $('#keyChip'), st = $('#keyStatus'), mb = $('#matchBox'), warn = $('#issueKeyWarn');
+  const has = !!storedBlob();
+  $('#unlockBox').classList.toggle('hidden', !locked);
+  let match = null;
+  if (curJwk) match = curJwk.x === APP_PUBLIC.x && curJwk.y === APP_PUBLIC.y;
+
+  if (signKey) {
+    chip.className = 'chip ' + (match ? 'ok' : 'warn');
+    chip.textContent = match ? '🔑 المفتاح جاهز' : '🔑 المفتاح لا يطابق التطبيق';
+    st.className = 'warnbox okbox'; st.textContent = '✅ المفتاح الخاص محمّل وجاهز للتوقيع.' + (storedBlob() && storedBlob().enc ? ' (محفوظ مشفّرًا)' : ' (محفوظ دون كلمة سر)');
+  } else if (locked) {
+    chip.className = 'chip warn'; chip.textContent = '🔒 المفتاح مقفل';
+    st.className = 'warnbox'; st.textContent = '🔒 المفتاح محفوظ ومشفّر — أدخل كلمة السر لفتحه.';
+  } else {
+    chip.className = 'chip bad'; chip.textContent = '🔑 لا يوجد مفتاح';
+    st.className = 'warnbox badbox'; st.textContent = has ? '⚠️ تعذّر قراءة المفتاح المحفوظ.' : '⚠️ لا يوجد مفتاح توقيع. استورد مفتاحك الخاص الحالي، أو ولّد زوجًا جديدًا.';
+  }
+
+  if (curJwk) {
+    mb.className = 'warnbox ' + (match ? 'okbox' : 'badbox');
+    mb.innerHTML = match
+      ? '✅ مفتاحك الخاص يطابق المفتاح العام المضمَّن في التطبيق.'
+      : '⛔ <b>لا يطابق</b> المفتاح العام في التطبيق. الأكواد المُصدَرة لن تُقبل حتى تضع المفتاح العام أدناه في <span class="mono">license.js</span> وتعيد بناء التطبيق (وستتوقف الأكواد القديمة).';
+    $('#pubShow').textContent = JSON.stringify({ kty: 'EC', crv: 'P-256', x: curJwk.x, y: curJwk.y });
+  } else {
+    mb.className = 'warnbox'; mb.textContent = 'حمّل مفتاحًا لإجراء المطابقة.';
+    $('#pubShow').textContent = '—';
+  }
+
+  let w = '';
+  if (!signKey) w = locked ? '🔒 المفتاح مقفل — افتحه من تبويب «المفاتيح» أولًا.' : '⚠️ لا يوجد مفتاح توقيع — أضفه من تبويب «المفاتيح» قبل إصدار التراخيص.';
+  else if (match === false) w = '⚠️ هذا المفتاح لا يطابق المفتاح العام داخل التطبيق: الأكواد ستُرفض حتى تحدّث license.js (انظر تبويب المفاتيح).';
+  warn.classList.toggle('hidden', !w); warn.className = 'warnbox' + (w ? '' : ' hidden'); warn.textContent = w;
+  updateMakeBtn();
+}
+
+$('#unlockBtn').onclick = async () => {
+  try { await useJwk(await unpackKey(storedBlob(), $('#unlockPw').value)); $('#unlockPw').value = ''; toast('🔓 تم فتح المفتاح'); refreshKeyUI(); }
+  catch (e) { toast('❌ ' + e.message); }
+};
+$('#genKey').onclick = async () => {
+  if (storedBlob() && !confirm('سيُستبدل المفتاح الحالي بمفتاح جديد.\nكل التراخيص الصادرة بالمفتاح القديم لن تُقبل في التطبيق بعد تحديث المفتاح العام.\nهل تريد المتابعة؟')) return;
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+  await useJwk(jwk); await saveKey(curJwk, $('#keyPw').value);
+  refreshKeyUI(); toast('✅ تم توليد المفتاح — صدّر نسخة احتياطية الآن!');
+};
+async function importFromText(text) {
+  let obj; try { obj = JSON.parse(text); } catch (e) { throw new Error('النص ليس JSON صالحًا'); }
+  const jwk = await unpackKey(obj, $('#keyPw').value);
+  await useJwk(jwk); await saveKey(curJwk, $('#keyPw').value);
+  refreshKeyUI(); toast('✅ تم استيراد المفتاح');
+}
+$('#impKey').onclick = async () => {
+  const t = $('#keyPaste').value.trim();
+  if (t) { try { await importFromText(t); $('#keyPaste').value = ''; } catch (e) { toast('❌ ' + e.message); } }
+  else $('#keyFile').click();
+};
+$('#keyFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { await importFromText(await f.text()); } catch (er) { toast('❌ ' + er.message); }
+  e.target.value = '';
+};
+$('#expKey').onclick = async () => {
+  if (!curJwk) return toast('لا يوجد مفتاح محمّل للتصدير');
+  const blob = await packKey(curJwk, $('#keyPw').value);
+  download('boutika-private-key' + (blob.enc ? '.enc' : '') + '.json', JSON.stringify(blob, null, 2), 'application/json');
+  toast('💾 احفظ الملف في مكان آمن (خارج هذا الحاسوب أيضًا)');
+};
+$('#delKey').onclick = () => {
+  if (!confirm('حذف المفتاح من هذا المتصفح؟ تأكد أن لديك نسخة احتياطية منه.')) return;
+  localStorage.removeItem(KEY_STORE); signKey = null; curJwk = null; locked = false; refreshKeyUI(); toast('تم الحذف');
+};
+$('#cpPub').onclick = () => {
+  if (!curJwk) return toast('لا يوجد مفتاح');
+  copyText(`const BOUTIK_PUBLIC_KEY = {\n  kty: 'EC', crv: 'P-256',\n  x: '${curJwk.x}',\n  y: '${curJwk.y}'\n};`, '✅ نُسخ السطر — الصقه في license.js');
+};
+
+/* ============================================================
+   قراءة رمز الجهاز
+   ============================================================ */
+let device = null;
+
+function parseDevice(text) {
+  const t = String(text || '').toUpperCase().replace(/[\s\-_]/g, '');
+  const m = t.match(/BTK1:?([0-9A-F]{32})/) || t.match(/([0-9A-F]{32})/);
+  return m ? m[1] : null;
+}
+function setDevice(id) {
+  device = id;
+  $('#devFound').classList.toggle('hidden', !id);
+  $('#devErr').classList.add('hidden');
+  if (id) {
+    $('#devShow').textContent = groupId(id);
+    const prev = loadHistory().filter(h => h.device === id);
+    const box = $('#devHist');
+    if (prev.length) {
+      const last = prev[prev.length - 1];
+      box.classList.remove('hidden');
+      box.innerHTML = `ℹ️ هذا الجهاز له ${prev.length} ترخيص سابق (آخرها «${esc(last.name || '—')}» — ${last.end ? 'ينتهي ' + fmtDate(last.end) : 'دائم'}).`;
+      if (!$('#custName').value) $('#custName').value = last.name || '';
+      if (!$('#custPhone').value) $('#custPhone').value = last.phone || '';
+    } else box.classList.add('hidden');
+  } else $('#devHist').classList.add('hidden');
+  updatePreview(); updateMakeBtn();
+}
+function devFail(msg) { setDevice(null); const e = $('#devErr'); e.textContent = msg; e.classList.remove('hidden'); }
+
+async function rescale(file, max) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  return new File([blob], 'x.png', { type: 'image/png' });
+}
+async function decodeImage(file) {
+  if ('BarcodeDetector' in window) {
+    try {
+      const det = new BarcodeDetector({ formats: ['qr_code'] });
+      const r = await det.detect(await createImageBitmap(file));
+      if (r.length) return r[0].rawValue;
+    } catch (e) {}
+  }
+  const tries = [file];
+  try { tries.push(await rescale(file, 1400), await rescale(file, 800)); } catch (e) {}
+  for (const f of tries) {
+    const h = new Html5Qrcode('qrHolder', { verbose: false });
+    try { return await h.scanFile(f, false); } catch (e) {} finally { try { h.clear(); } catch (e) {} }
+  }
+  throw new Error('no qr');
+}
+async function handleDeviceImage(file) {
+  try {
+    const text = await decodeImage(file);
+    const id = parseDevice(text);
+    if (!id) return devFail('تمّت قراءة QR لكنه ليس رمز جهاز Boutika.');
+    $('#devText').value = 'BTK1:' + id; setDevice(id); toast('✅ تمّت قراءة رمز الجهاز');
+  } catch (e) { devFail('لم أجد QR في الصورة. جرّب صورة أوضح أو قريبة أكثر، أو الصق النص.'); }
+}
+
+const drop = $('#drop');
+drop.onclick = () => $('#devFile').click();
+$('#devFile').onchange = e => { if (e.target.files[0]) handleDeviceImage(e.target.files[0]); e.target.value = ''; };
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleDeviceImage(f); });
+document.addEventListener('paste', e => {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for (const it of items) if (it.type.startsWith('image/')) { handleDeviceImage(it.getAsFile()); e.preventDefault(); return; }
+});
+$('#pasteBtn').onclick = async () => {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const it of items) for (const t of it.types) {
+      if (t.startsWith('image/')) return handleDeviceImage(new File([await it.getType(t)], 'p.png', { type: t }));
+    }
+    const txt = await navigator.clipboard.readText(); $('#devText').value = txt; $('#devText').dispatchEvent(new Event('input'));
+  } catch (e) { toast('الصق بـ Ctrl+V مباشرة'); }
+};
+$('#devText').oninput = e => {
+  const v = e.target.value.trim();
+  if (!v) return setDevice(null);
+  const id = parseDevice(v);
+  if (id) setDevice(id); else devFail('لا أجد معرّف جهاز صالحًا (32 خانة سداسية) في النص.');
+};
+
+let cam = null;
+async function stopCam() {
+  $('#scanBox').classList.add('hidden');
+  if (cam) { try { await cam.stop(); } catch (e) {} try { cam.clear(); } catch (e) {} cam = null; }
+}
+$('#camStop').onclick = stopCam;
+$('#camBtn').onclick = async () => {
+  await stopCam(); $('#scanBox').classList.remove('hidden');
+  try {
+    cam = new Html5Qrcode('reader', { verbose: false });
+    await cam.start({ facingMode: 'environment' }, { fps: 12, qrbox: 240 }, async text => {
+      const id = parseDevice(text); if (!id) return;
+      await stopCam(); $('#devText').value = 'BTK1:' + id; setDevice(id); toast('✅ تمّت قراءة رمز الجهاز');
+    }, () => {});
+  } catch (e) { await stopCam(); toast('⚠️ تعذّر تشغيل الكاميرا'); }
+};
+
+/* ============================================================
+   الخطة والتواريخ
+   ============================================================ */
+let plan = { p: 'y1', d: 365 };
+function todayStr() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+$('#startDate').value = todayStr();
+$$('#plans button').forEach(b => b.onclick = () => {
+  $$('#plans button').forEach(x => x.classList.toggle('on', x === b));
+  plan = { p: b.dataset.p, d: +b.dataset.d };
+  $('#customBox').classList.toggle('hidden', plan.p !== 'custom');
+  updatePreview();
+});
+['#customDays', '#startDate', '#custName'].forEach(s => $(s).addEventListener('input', updatePreview));
+
+function calc() {
+  let days = plan.d;
+  if (plan.p === 'custom') days = Math.max(1, Math.min(3650, parseInt($('#customDays').value, 10) || 0));
+  const sv = $('#startDate').value;
+  let start = sv ? new Date(sv + 'T00:00:00').getTime() : Date.now();
+  // إن كان البدء اليوم نستعمل اللحظة الحالية لتفادي «لم يبدأ بعد»
+  if (sv === todayStr()) start = Date.now();
+  const end = plan.p === 'life' ? null : start + days * DAY;
+  return { days, start, end };
+}
+function updatePreview() {
+  const c = calc();
+  $('#preview').innerHTML = plan.p === 'life'
+    ? `<b>ترخيص دائم</b> يبدأ ${fmtDate(c.start)} ولا ينتهي.`
+    : `يبدأ <b>${fmtDate(c.start)}</b> · ينتهي <b>${fmtDate(c.end)}</b> · المدة <b>${c.days}</b> يوم`;
+}
+function updateMakeBtn() { $('#makeBtn').disabled = !(signKey && device); }
+
+/* ============================================================
+   توقيع الترخيص
+   ============================================================ */
+async function signLicense(payloadObj) {
+  const bytes = enc(JSON.stringify(payloadObj));
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signKey, bytes));
+  if (sig.length !== 64) throw new Error('طول التوقيع غير متوقع');
+  return 'B3-' + b64u(bytes) + '-' + b64u(sig);
+}
+async function selfVerify(code) {
+  const pub = { kty: 'EC', crv: 'P-256', x: curJwk.x, y: curJwk.y };
+  const key = await crypto.subtle.importKey('jwk', pub, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+  const body = code.slice(3), sig = body.slice(-86);
+  let p64 = body.slice(0, -86); if (p64.endsWith('-')) p64 = p64.slice(0, -1);
+  return crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, unb64u(sig), unb64u(p64));
+}
+
+let lastLic = null;
+$('#makeBtn').onclick = async () => {
+  if (!signKey) return toast('أضف مفتاح التوقيع أولًا');
+  if (!device) return toast('أدخل رمز الجهاز أولًا');
+  const name = $('#custName').value.trim();
+  const c = calc();
+  if (plan.p === 'custom' && !(c.days >= 1)) return toast('أدخل عدد أيام صحيحًا');
+  const payload = { d: device, s: c.start };
+  if (c.end) payload.e = c.end;
+  payload.t = plan.p;
+  if (name) payload.n = name;
+  try {
+    const code = await signLicense(payload);
+    const ok = await selfVerify(code);
+    lastLic = { id: Date.now().toString(36), ts: Date.now(), device, name, phone: $('#custPhone').value.trim(), plan: plan.p, start: c.start, end: c.end || null, code };
+    const h = loadHistory(); h.push(lastLic); saveHistory(h);
+    showResult(lastLic, ok);
+    toast('✅ تم إنشاء الترخيص');
+  } catch (e) { console.error(e); toast('❌ فشل التوقيع: ' + e.message); }
+};
+
+function showResult(l, ok) {
+  $('#resultEmpty').classList.add('hidden'); $('#resultBody').classList.remove('hidden');
+  const canvas = $('#licCanvas');
+  BoutikQR.draw(canvas, l.code, { size: 560, ecc: 'M', margin: 2 });
+  $('#resCode').value = l.code;
+  $('#resMeta').innerHTML =
+    `<span>الزبون</span><b>${esc(l.name || '—')}</b>` +
+    `<span>الجهاز</span><b class="mono" style="font-size:12px">${groupId(l.device)}</b>` +
+    `<span>الخطة</span><b>${PLAN_AR[l.plan] || l.plan}</b>` +
+    `<span>تبدأ</span><b>${fmtDate(l.start)}</b>` +
+    `<span>تنتهي</span><b>${l.end ? fmtDate(l.end) : 'لا تنتهي ♾️'}</b>`;
+  const sc = $('#selfCheck');
+  sc.textContent = ok ? '🛡️ فُحص التوقيع ذاتيًّا بنجاح.' : '⚠️ فشل الفحص الذاتي للتوقيع!';
+  sc.style.color = ok ? 'var(--ok)' : 'var(--bad)';
+}
+
+/** صورة PNG نظيفة: QR كبير + سطر تعريفي صغير تحته */
+async function licensePng(l) {
+  const qr = document.createElement('canvas');
+  BoutikQR.draw(qr, l.code, { size: 900, ecc: 'M', margin: 4 });
+  const pad = 40, capH = 110;
+  const c = document.createElement('canvas');
+  c.width = qr.width + pad * 2; c.height = qr.height + pad * 2 + capH;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(qr, pad, pad);
+  x.fillStyle = '#14213d'; x.textAlign = 'center'; x.direction = 'rtl';
+  x.font = 'bold 34px Tahoma, Arial'; x.fillText('Boutika — رمز التفعيل', c.width / 2, qr.height + pad + 52);
+  x.font = '26px Tahoma, Arial'; x.fillStyle = '#586174';
+  x.fillText((l.name ? l.name + ' · ' : '') + (l.end ? 'ينتهي ' + fmtDate(l.end) : 'دائم'), c.width / 2, qr.height + pad + 96);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+function fileBase(l) { return 'boutika-license-' + (l.name ? l.name.replace(/[^\w\u0600-\u06FF]+/g, '_') + '-' : '') + l.device.slice(0, 6); }
+
+$('#dlPng').onclick = async () => lastLic && download(fileBase(lastLic) + '.png', await licensePng(lastLic));
+$('#shPng').onclick = async () => {
+  if (!lastLic) return;
+  const blob = await licensePng(lastLic);
+  const file = new File([blob], fileBase(lastLic) + '.png', { type: 'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) return await navigator.share({ files: [file], text: 'رمز تفعيل Boutika' });
+    if (navigator.share) return await navigator.share({ text: lastLic.code });
+  } catch (e) { if (e.name === 'AbortError') return; }
+  await copyText(lastLic.code, '✅ المشاركة غير متاحة هنا — نُسخ الكود');
+};
+$('#cpCode').onclick = () => lastLic && copyText(lastLic.code, '✅ تم نسخ الكود');
+$('#dlTxt').onclick = () => lastLic && download(fileBase(lastLic) + '.txt', lastLic.code);
+
+/* ============================================================
+   السجل
+   ============================================================ */
+function loadHistory() { try { return JSON.parse(localStorage.getItem(HIST_STORE) || '[]'); } catch (e) { return []; } }
+function saveHistory(h) { localStorage.setItem(HIST_STORE, JSON.stringify(h)); $('#histCount').textContent = h.length; }
+
+function renderHistory() {
+  const q = $('#histSearch').value.trim().toLowerCase();
+  const all = loadHistory().slice().reverse();
+  const rows = all.filter(h => !q || [h.name, h.phone, h.device].join(' ').toLowerCase().includes(q));
+  $('#histEmpty').classList.toggle('hidden', rows.length > 0);
+  const now = Date.now();
+  $('#histBody').innerHTML = rows.map(h => {
+    const expired = h.end && h.end < now;
+    const left = h.end ? Math.ceil((h.end - now) / DAY) : null;
+    const tag = !h.end ? '<span class="tag ok">دائم</span>' : expired ? '<span class="tag bad">منتهٍ</span>' : `<span class="tag ok">فعّال · ${left} يوم</span>`;
+    return `<tr>
+      <td><b>${esc(h.name || '—')}</b><div style="color:var(--muted);font-size:11.5px" class="mono">${esc(h.phone || '')}</div></td>
+      <td class="mono" style="font-size:11.5px">${h.device.slice(0, 8)}…${h.device.slice(-4)}</td>
+      <td>${PLAN_AR[h.plan] || h.plan}</td>
+      <td>${fmtDate(h.ts)}</td>
+      <td>${h.end ? fmtDate(h.end) : '—'}</td>
+      <td>${tag}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sm" data-a="show" data-i="${h.id}">عرض</button>
+        <button class="btn sm" data-a="renew" data-i="${h.id}">تجديد</button>
+        <button class="btn sm bad" data-a="del" data-i="${h.id}">✕</button>
+      </td></tr>`;
+  }).join('');
+}
+$('#histSearch').oninput = renderHistory;
+$('#histBody').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const h = loadHistory(); const rec = h.find(x => x.id === b.dataset.i); if (!rec) return;
+  if (b.dataset.a === 'del') {
+    if (!confirm('حذف هذا السجل؟ (لا يُلغي الترخيص نفسه)')) return;
+    saveHistory(h.filter(x => x.id !== rec.id)); renderHistory();
+  } else if (b.dataset.a === 'show') {
+    lastLic = rec; $$('nav.tabs button')[0].click(); showResult(rec, true);
+  } else if (b.dataset.a === 'renew') {
+    $$('nav.tabs button')[0].click();
+    $('#devText').value = 'BTK1:' + rec.device; setDevice(rec.device);
+    $('#custName').value = rec.name || ''; $('#custPhone').value = rec.phone || '';
+    window.scrollTo({ top: 0, behavior: 'smooth' }); toast('أكمل المدة ثم أنشئ الترخيص الجديد');
+  }
+};
+$('#histExport').onclick = () => download('boutika-license-history.json', JSON.stringify(loadHistory(), null, 2), 'application/json');
+$('#histCsv').onclick = () => {
+  const rows = [['الزبون', 'الهاتف', 'الجهاز', 'الخطة', 'الإصدار', 'الانتهاء']].concat(loadHistory().map(h =>
+    [h.name, h.phone, h.device, PLAN_AR[h.plan] || h.plan, new Date(h.ts).toISOString().slice(0, 10), h.end ? new Date(h.end).toISOString().slice(0, 10) : 'دائم']));
+  const csv = '\ufeff' + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  download('boutika-licenses.csv', csv, 'text/csv');
+};
+$('#histImport').onclick = () => $('#histFile').click();
+$('#histFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const inc = JSON.parse(await f.text()); if (!Array.isArray(inc)) throw 0;
+    const cur = loadHistory(); const ids = new Set(cur.map(x => x.id));
+    inc.filter(x => x && x.id && x.device && x.code && !ids.has(x.id)).forEach(x => cur.push(x));
+    cur.sort((a, b) => a.ts - b.ts); saveHistory(cur); renderHistory(); toast('✅ تم الاستيراد');
+  } catch (er) { toast('❌ ملف غير صالح'); }
+  e.target.value = '';
+};
+
+/* ============================================================
+   بدء
+   ============================================================ */
+if (!window.crypto || !crypto.subtle) {
+  document.body.insertAdjacentHTML('afterbegin', '<div class="warnbox badbox" style="margin:14px">⛔ هذا المتصفح لا يدعم WebCrypto في هذا السياق. افتح الملف بمتصفح حديث (Chrome / Edge / Firefox).</div>');
+}
+$('#histCount').textContent = loadHistory().length;
+updatePreview();
+bootKey();
+</script>
+</body>
+</html>
