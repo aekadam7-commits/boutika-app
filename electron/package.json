@@ -14,7 +14,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "server/**/*",
+      "boutika-server/**/*",
       "www/**/*",
       "node_modules/**/*"
     ],

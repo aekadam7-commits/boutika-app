@@ -10,9 +10,9 @@ let serverProcess = null;
 
 function startServer() {
   try {
-    const serverPath = path.join(__dirname, '..', 'server', 'server.js');
+    const serverPath = path.join(__dirname, '..', 'boutika-server', 'src', 'server.js');
     serverProcess = fork(serverPath, [], {
-      env: { ...process.env, PORT: '8787' },
+      env: { ...process.env, PORT: '8787', BOUTIKA_DATA: path.join(app.getPath('userData'), 'boutika-data'), BOUTIKA_WWW: path.join(__dirname, '..', 'www') },
       stdio: 'ignore'
     });
     serverProcess.on('error', (e) => console.error('Server error:', e));
