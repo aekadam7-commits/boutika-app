@@ -19,6 +19,7 @@ function renderSettings() {
   if (el('setScannerBeep')) el('setScannerBeep').checked = s.scannerBeep !== false;
   if (el('setScannerVibrate')) el('setScannerVibrate').checked = s.scannerVibrate !== false;
   if (el('setScannerAvoidDup')) el('setScannerAvoidDup').checked = s.scannerAvoidDuplicate !== false;
+  if (el('setScannerUsb')) el('setScannerUsb').checked = s.scannerUsb !== false;
 
   const net = document.getElementById('netSettings');
   if (net) {

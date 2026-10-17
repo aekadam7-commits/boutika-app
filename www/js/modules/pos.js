@@ -38,16 +38,17 @@ function searchPOS() {
 
 function addToCart(productId) {
   const p = DB.products().find(x => x.id === productId);
-  if (!p) return;
-  if (p.qty <= 0) { toast('⚠️ الكمية نفدت', true); return; }
+  if (!p) return false;
+  if (p.qty <= 0) { toast('⚠️ الكمية نفدت', true); return false; }
   const item = cart.find(x => x.product_id === productId);
   if (item) {
-    if (item.qty + 1 > p.qty) { toast('⚠️ الكمية غير كافية (متوفر: ' + p.qty + ')', true); return; }
+    if (item.qty + 1 > p.qty) { toast('⚠️ الكمية غير كافية (متوفر: ' + p.qty + ')', true); return false; }
     item.qty++;
   } else {
     cart.push({ product_id: p.id, name: p.name, barcode: p.barcode || '', price: p.price, cost: p.cost || 0, qty: 1 });
   }
   renderCart();
+  return true;
 }
 
 function increaseQty(index) {
