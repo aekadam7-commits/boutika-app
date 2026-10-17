@@ -142,12 +142,13 @@
         <div class="card">
           <h3>🔍 البحث / المسح</h3>
           <div class="search-bar">
-            <input id="posSearch" placeholder="امسح الباركود أو اكتب الاسم..." oninput="searchPOS()">
+            <input id="posSearch" placeholder="امسح الباركود (ماسح USB) أو اكتب الاسم..." oninput="searchPOS()">
             <button class="btn btn-primary" onclick="openScanner('pos')">📷</button>
           </div>
           <div id="posResults"></div>
           <div id="remoteScannerBar" style="margin:8px 0;display:none">
-            <button class="btn btn-info btn-block" onclick="startRemoteScanner('barcode', {target:'pos'})">📱 المسح بجهاز آخر</button>
+            <button class="btn btn-info btn-block" onclick="startRemoteScanner('barcode', {target:'pos'}, {mode:'stream'})">📱 ماسح لاسلكي مستمر <span data-remote-count></span></button>
+            <button class="btn btn-block" style="margin-top:6px" onclick="startScannerForDevice({target:'pos'})">📲 هذا الجهاز ماسح لجهاز آخر</button>
           </div>
         </div>
         <div class="card">
@@ -400,6 +401,10 @@
           <input type="checkbox" id="setScannerAvoidDup" checked style="width:auto">
           <span>منع المسح المتكرر (2.5 ثانية)</span>
         </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+          <input type="checkbox" id="setScannerUsb" checked style="width:auto">
+          <span>ماسح USB / بلوتوث (يعمل في أي شاشة)</span>
+        </label>
         <button class="btn btn-primary" onclick="saveScannerSettings()">💾 حفظ</button>
       </div>
       <div class="card">
@@ -462,6 +467,12 @@
     <button onclick="closeScanner()" class="scanner-close">✖</button>
   </div>
   <div id="scannerContainer"></div>
+  <div class="scanner-tools">
+    <button id="scannerTorchBtn" class="hidden" onclick="toggleScannerTorch()" title="الفلاش">🔦</button>
+    <button onclick="switchScannerCamera()" title="تبديل الكاميرا">🔄</button>
+    <input id="scannerManual" dir="ltr" inputmode="numeric" placeholder="اكتب الباركود يدويًا" onkeydown="if(event.key==='Enter'){event.preventDefault();scannerManualSubmit();}">
+    <button onclick="scannerManualSubmit()" title="إضافة">➕</button>
+  </div>
   <div class="scanner-info">
     <div id="scannerStatus">وجّه الكاميرا نحو الباركود...</div>
     <div id="scannerLast" class="scanner-last"></div>
@@ -498,6 +509,8 @@
 <script type="boutika/defer" src="js/modules/reservations.js"></script>
 <script type="boutika/defer" src="js/modules/users.js"></script>
 <script type="boutika/defer" src="js/modules/scanner.js"></script>
+<script type="boutika/defer" src="js/modules/scan-remote.js"></script>
+<script type="boutika/defer" src="js/modules/scan-wedge.js"></script>
 <script type="boutika/defer" src="js/modules/share.js"></script>
 <script type="boutika/defer" src="js/modules/settings.js"></script>
 <script type="boutika/defer" src="js/app.js"></script>
