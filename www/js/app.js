@@ -57,7 +57,7 @@ function switchTab(tab) {
     // إظهار/إخفاء شريط Remote Scanner
     const bar = document.getElementById('remoteScannerBar');
     if (bar) {
-      bar.style.display = (DB.mode().current === 'client' && Net.host) ? 'block' : 'none';
+      bar.style.display = (typeof isNetworked === 'function' && isNetworked()) ? 'block' : 'none';
     }
     if (typeof registerRemoteScanListener === 'function') registerRemoteScanListener();
   } else if (actions[tab]) {

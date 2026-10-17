@@ -109,6 +109,27 @@
     };
   }
 
+  /* ---------- 7) زر عائم للمسح بالكاميرا وإرسال النتيجة للجهاز الآخر (من أي شاشة) ---------- */
+  function updateScanFab() {
+    try {
+      const show = typeof isNetworked === 'function' && isNetworked() && !document.getElementById('modeScreen').offsetParent;
+      let b = document.getElementById('boutikaScanFab');
+      if (!show) { if (b) b.style.display = 'none'; return; }
+      if (!b) {
+        b = document.createElement('button');
+        b.id = 'boutikaScanFab';
+        b.textContent = '📡📷';
+        b.title = 'مسح بالكاميرا وإرسال إلى الجهاز الآخر';
+        b.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9400;width:56px;height:56px;border-radius:50%;' +
+          'border:0;background:#138a45;color:#fff;font-size:18px;box-shadow:0 4px 14px #0004;cursor:pointer';
+        b.onclick = function () { startRemoteScanner(); };
+        document.body.appendChild(b);
+      }
+      b.style.display = 'block';
+    } catch (e) {}
+  }
+  setInterval(updateScanFab, 2000);
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addStandaloneCard);
   else addStandaloneCard();
 })();
