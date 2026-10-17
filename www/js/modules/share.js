@@ -2,7 +2,7 @@
    Boutik v4 — مشاركة التطبيق (QR + رابط التحميل)
    ============================================================ */
 
-const BOUTIK_DOWNLOAD_URL = 'https://github.com/aekadam7-commits/bouttik-app/releases/latest/download/boutik.apk';
+const BOUTIK_DOWNLOAD_URL = 'https://github.com/aekadam7-commits/boutika-app/releases/latest/download/Boutika.apk';
 
 function openShareModal() {
   const url = BOUTIK_DOWNLOAD_URL;
