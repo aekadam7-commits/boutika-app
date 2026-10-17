@@ -104,7 +104,6 @@ function recordStockMovement(productId, productName, type, qty, before, after, r
       user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'system',
       created_at: now()
     });
-    if (movements.length > 5000) movements.splice(0, movements.length - 5000);
     localStorage.setItem(DB.PREFIX + 'stockMovements', JSON.stringify(movements));
   } catch (e) { console.error('recordStockMovement:', e); }
 }

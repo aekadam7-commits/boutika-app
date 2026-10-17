@@ -22,6 +22,7 @@ function getScannerConfig() {
 
 function openScanner(target) {
   scannerTarget = target;
+  remoteScannerMode = (target === 'remote');
   scannerLastCode = '';
   scannerLastTime = 0;
 
@@ -138,13 +139,10 @@ function closeScanner() {
 
 function handleScan(text) {
   if (remoteScannerMode) {
-    const sent = (typeof Sync !== 'undefined' && Sync.sendScan) ? Sync.sendScan(text) : false;
-    if (sent) {
-      toast('📡 تم إرسال: ' + text);
-    } else {
-      toast('⚠️ لا يوجد اتصال بالسيرفر', true);
-      playErrorBeep();
-    }
+    Promise.resolve((typeof Sync !== 'undefined' && Sync.sendScan) ? Sync.sendScan(text) : false).then(sent => {
+      if (sent) toast('📡 تم إرسال: ' + text);
+      else { toast('⚠️ لا يوجد اتصال بالجهاز الآخر', true); playErrorBeep(); }
+    });
     return;
   }
 
@@ -181,19 +179,58 @@ function handleScan(text) {
   }
 }
 
+// يعمل من أي جهاز (رئيسي أو فرعي، هاتف أو حاسوب): ما تمسحه الكاميرا يظهر مباشرة في الأجهزة الأخرى
+function isNetworked() {
+  const m = DB.mode();
+  return (m.current === 'client' && !!Net.host) || (m.current === 'host' && !m.standalone);
+}
+
 function startRemoteScanner() {
-  if (DB.mode().current !== 'client') {
-    toast('⚠️ يجب أن تكون جهازًا فرعيًا (عميل)', true);
-    return;
-  }
-  if (!Net.host) {
-    toast('⚠️ غير متصل بمضيف', true);
+  if (!isNetworked()) {
+    toast('⚠️ هذا الجهاز غير مرتبط بجهاز آخر', true);
     return;
   }
   remoteScannerMode = true;
-  toast('📡 وضع المسح عن بُعد مُفعَّل — سيُرسَل إلى الحاسوب');
+  toast('📡 المسح عن بُعد: ما تمسحه سيظهر في الجهاز الآخر');
   openScanner('remote');
 }
+
+// استقبال باركود جاء من جهاز آخر، ويُعالَج حسب الشاشة المفتوحة
+function handleIncomingScan(code) {
+  code = String(code || '').trim();
+  if (!code) return;
+  try {
+    const f = document.getElementById('pBarcode');
+    if (f && f.offsetParent !== null) {                       // نافذة منتج مفتوحة: املأ حقل الباركود
+      f.value = code;
+      if (typeof onProductBarcodeChange === 'function') onProductBarcodeChange(code);
+      if (typeof playSuccessBeep === 'function') playSuccessBeep();
+      toast('📡 باركود مستلم: ' + code);
+      return;
+    }
+    const open = document.querySelector('.tab-content:not(.hidden)');
+    const tab = open ? open.id.replace('tab-', '') : '';
+    const p = DB.products().find(x => String(x.barcode || '').trim() === code);
+
+    if (tab === 'products') {
+      if (p && typeof openProductModal === 'function') { openProductModal(p.id); toast('📦 ' + p.name); }
+      else if (typeof openProductModalWithBarcode === 'function') openProductModalWithBarcode(code);
+      if (typeof playSuccessBeep === 'function') playSuccessBeep();
+      return;
+    }
+    if (p) {
+      if (tab !== 'pos' && typeof switchTab === 'function') switchTab('pos');
+      addToCart(p.id);
+      toast('📡 ' + p.name);
+      if (typeof playSuccessBeep === 'function') playSuccessBeep();
+      if (typeof vibrate === 'function') vibrate([60, 30, 60]);
+    } else {
+      toast('📡 باركود غير معروف: ' + code, true);
+      if (typeof playErrorBeep === 'function') playErrorBeep();
+    }
+  } catch (e) { console.warn('handleIncomingScan:', e); }
+}
+window.handleIncomingScan = handleIncomingScan;
 
 function stopRemoteScanner() {
   remoteScannerMode = false;

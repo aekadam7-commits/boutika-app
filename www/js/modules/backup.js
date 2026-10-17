@@ -181,18 +181,14 @@ function renderDataManagement() {
   if (!el) return;
 
   const size = getStorageSize();
-  const pct = Math.min(100, Math.round((size.mb / 10) * 100));
-  const barColor = size.mb > 7 ? '#e74c3c' : (size.mb > 5 ? '#f39c12' : '#138a45');
 
   const invoices = DB.invoices();
   const paid = invoices.filter(i => (i.due || 0) === 0).length;
   const withDebt = invoices.filter(i => (i.due || 0) > 0).length;
 
   el.innerHTML = `
-    <div class="cart-item"><span>حجم التخزين:</span><strong style="color:${barColor}">${size.mb} MB / 10 MB</strong></div>
-    <div style="background:#eee;height:10px;border-radius:5px;overflow:hidden;margin:8px 0">
-      <div style="width:${pct}%;background:${barColor};height:100%"></div>
-    </div>
+    <div class="cart-item"><span>حجم التخزين:</span><strong>${size.mb} MB</strong></div>
+    <div class="small" style="margin:4px 0 8px;color:#138a45">✅ التخزين غير محدود عمليًا — لا يُحذف شيء تلقائيًا</div>
 
     <div class="cart-item"><span>🧾 الفواتير:</span><strong>${invoices.length} (${paid} مدفوعة، ${withDebt} دين)</strong></div>
     <div class="cart-item"><span>📜 حركات المخزون:</span><strong>${DB.stockMovements().length}</strong></div>

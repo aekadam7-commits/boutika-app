@@ -83,32 +83,8 @@ function renderDashboard() {
   renderNetworkInfo();
   if (typeof renderShiftCard === 'function') renderShiftCard();
 
-  // تنبيه حجم البيانات
-  try {
-    if (typeof getStorageSize === 'function') {
-      const size = getStorageSize();
-      const elWarn = document.getElementById('storageWarning');
-      if (elWarn) {
-        if (size.mb > 7) {
-          elWarn.style.display = 'block';
-          elWarn.innerHTML = `<div class="card" style="background:#ffecec;border-right:4px solid #e74c3c">
-            <h3>⚠️ تنبيه حجم البيانات</h3>
-            <div>حجم البيانات: <b style="color:#c00">${size.mb} MB / 10 MB</b></div>
-            <div class="small" style="margin-top:6px">قم بتصدير نسخة احتياطية وحذف البيانات القديمة.</div>
-            <button class="btn btn-warning btn-block" style="margin-top:8px" onclick="switchTab('settings')">⚙️ إدارة البيانات</button>
-          </div>`;
-        } else if (size.mb > 5) {
-          elWarn.style.display = 'block';
-          elWarn.innerHTML = `<div class="card" style="background:#fff3cd;border-right:4px solid #f39c12">
-            <h3>⚠️ حجم البيانات يقترب من الحد</h3>
-            <div>حجم البيانات: <b>${size.mb} MB / 10 MB</b></div>
-          </div>`;
-        } else {
-          elWarn.style.display = 'none';
-        }
-      }
-    }
-  } catch (e) {}
+  // (أُلغي تنبيه حجم 10MB: التخزين غير محدود ولا يُحذف شيء تلقائيًا)
+  try { const elWarn = document.getElementById('storageWarning'); if (elWarn) elWarn.style.display = 'none'; } catch (e) {}
 }
 
 function renderNetworkInfo() {
