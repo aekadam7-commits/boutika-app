@@ -20,6 +20,7 @@ const REQUIRE_TOKEN = process.env.BOUTIKA_REQUIRE_TOKEN === '1';
 const MAX_UPLOAD = (+process.env.BOUTIKA_MAX_UPLOAD_MB || 25) * 1024 * 1024;
 const MAX_BATCH = 5000;
 const scanClients = new Map();
+const deviceMeta = new Map();
 
 storage.load();
 const meta = storage.getMeta();
@@ -52,6 +53,10 @@ let wss;
 function broadcast(obj, except) {
   const payload = JSON.stringify(obj);
   wss.clients.forEach(c => { if (c.readyState === 1 && c !== except) c.send(payload); });
+}
+function broadcastDeviceList() {
+  const devices = Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) }));
+  broadcast({ type: 'devices', devices });
 }
 function sendScan(obj, except) {
   const payload = JSON.stringify(obj);
@@ -110,6 +115,23 @@ app.get('/api/sync/pull', guard, (req, res) => {
 app.get('/api/state', guard, (req, res) => {
   res.json({ ok: true, entries: storage.fullState(), seq: meta.seq });
 });
+app.get('/api/devices', guard, (req, res) => {
+  res.json({ ok: true, devices: Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) })) });
+});
+app.post('/api/scan/request', guard, (req, res) => {
+  const targetDeviceId = String(req.body && req.body.targetDeviceId || '');
+  const target = scanClients.get(targetDeviceId);
+  if (!target || target.readyState !== 1) return res.status(409).json({ ok: false, error: 'target device offline' });
+  target.send(JSON.stringify({ type: 'scan_request', requestId: req.body.requestId || null, requesterDeviceId: req.body.requesterDeviceId || null, targetDeviceId, kind: req.body.kind || 'barcode', context: req.body.context || null }));
+  res.json({ ok: true });
+});
+app.post('/api/scan/result', guard, (req, res) => {
+  const targetDeviceId = String(req.body && req.body.requesterDeviceId || '');
+  const target = scanClients.get(targetDeviceId);
+  if (!target || target.readyState !== 1) return res.status(409).json({ ok: false, error: 'requester device offline' });
+  target.send(JSON.stringify({ type: 'scan_result', requestId: req.body.requestId || null, code: String(req.body.code || ''), context: req.body.context || null }));
+  res.json({ ok: true });
+});
 app.post('/api/scan', guard, (req, res) => {
   const barcode = req.body && req.body.barcode;
   if (!barcode) return res.status(400).json({ ok: false });
@@ -160,7 +182,20 @@ wss.on('connection', ws => {
   ws.on('message', msg => {
     try {
       const d = JSON.parse(msg);
-      if (d.type === 'hello-device' && d.deviceId) { connectedDeviceId = String(d.deviceId); scanClients.set(connectedDeviceId, ws); return; }
+      if (d.type === 'hello-device' && d.deviceId) { connectedDeviceId = String(d.deviceId); scanClients.set(connectedDeviceId, ws); deviceMeta.set(connectedDeviceId, { label: d.label || '' }); broadcastDeviceList(); return; }
+      if (d.type === 'list-devices') { try { ws.send(JSON.stringify({ type: 'devices', devices: Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) })) })); } catch (_) {} return; }
+      if (d.type === 'scan_request') {
+        const target = scanClients.get(String(d.targetDeviceId || ''));
+        if (target && target.readyState === 1) target.send(JSON.stringify({ type: 'scan_request', requestId: d.requestId || null, requesterDeviceId: d.requesterDeviceId || connectedDeviceId, targetDeviceId: d.targetDeviceId || null, kind: d.kind || 'barcode', context: d.context || null }));
+        else try { ws.send(JSON.stringify({ type: 'scan_error', requestId: d.requestId || null, error: 'target device offline' })); } catch (_) {}
+        return;
+      }
+      if (d.type === 'scan_result') {
+        const target = scanClients.get(String(d.requesterDeviceId || ''));
+        if (target && target.readyState === 1) target.send(JSON.stringify({ type: 'scan_result', requestId: d.requestId || null, code: String(d.code || ''), context: d.context || null }));
+        else try { ws.send(JSON.stringify({ type: 'scan_error', requestId: d.requestId || null, error: 'requester device offline' })); } catch (_) {}
+        return;
+      }
       if (d.type === 'push' && Array.isArray(d.entries)) {
         const result = acceptEntries(d.entries, ws);
         try { ws.send(JSON.stringify({ type: 'ack', accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: result.seq })); } catch (_) {}
@@ -171,7 +206,7 @@ wss.on('connection', ws => {
       }
     } catch (e) { console.warn('WS msg error:', e.message); }
   });
-  ws.on('close', () => { if (connectedDeviceId) scanClients.delete(connectedDeviceId); });
+  ws.on('close', () => { if (connectedDeviceId) { scanClients.delete(connectedDeviceId); deviceMeta.delete(connectedDeviceId); broadcastDeviceList(); } });
 });
 // فحص الاتصال كل 30 ثانية (مهم لشبكات الهاتف)
 setInterval(() => {
