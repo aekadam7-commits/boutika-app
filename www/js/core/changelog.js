@@ -9,7 +9,7 @@
 const ChangeLog = {
   SKIP: ['changelog', 'mode', 'i18n'],              // خاصة بكل جهاز ولا تُزامَن
   OBJECT_TABLES: ['settings', 'counters'],           // كائنات مفردة وليست جداول
-  DEVICE_SETTINGS: ['scannerBeep', 'scannerVibrate', 'scannerAvoidDuplicate', 'scannerDuplicateInterval', 'darkMode', 'paperSize'],
+  DEVICE_SETTINGS: ['scannerBeep', 'scannerVibrate', 'scannerAvoidDuplicate', 'scannerDuplicateInterval', 'scannerUsb', 'darkMode', 'paperSize'],
   KEEP_SYNCED_DAYS: 7,
   _applying: false,
   _cache: {},

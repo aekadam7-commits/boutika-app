@@ -63,7 +63,7 @@ function initDB() {
       shopName: 'محل Boutik', shopAddress: '', shopPhone: '', shopRC: '',
       invPrefix: 'INV-', purPrefix: 'PUR-', currency: 'دج',
       taxRate: 0, expiryDays: 30, paperSize: '58', darkMode: false,
-      scannerBeep: true, scannerVibrate: true, scannerAvoidDuplicate: true
+      scannerBeep: true, scannerVibrate: true, scannerAvoidDuplicate: true, scannerUsb: true
     });
 
     const defaultUser = {

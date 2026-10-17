@@ -7,6 +7,7 @@ const Sync = {
   onScanCallback: null,
   remoteDevices: [],
   _remoteScanWaiters: new Map(),
+  _remoteScanSessions: new Map(),
   state: 'offline', // syncing | synced | offline | conflict
   lastError: '',
   lastSyncAt: 0,
@@ -61,19 +62,30 @@ const Sync = {
             return;
           }
           if (msg.type === 'scan_result') {
-            const waiter = this._remoteScanWaiters.get(String(msg.requestId || ''));
-            if (waiter) {
-              this._remoteScanWaiters.delete(String(msg.requestId || ''));
-              waiter.resolve({ code: String(msg.code || ''), requestId: msg.requestId || null, context: msg.context || null });
+            const id = String(msg.requestId || '');
+            const waiter = this._remoteScanWaiters.get(id);
+            if (waiter) {                                   // مسح لمرة واحدة
+              this._remoteScanWaiters.delete(id);
+              waiter.resolve({ code: String(msg.code || ''), requestId: msg.requestId || null, context: msg.context || null, from: msg.from || null });
+              return;
             }
+            const sess = this._remoteScanSessions.get(id);
+            if (sess) { try { sess.onCode(String(msg.code || ''), msg); } catch (e) { console.warn('scan stream:', e); } return; }
+            if (msg.push) this._handlePushedScan(msg);       // جهاز ماسح يدفع لهذا الجهاز
+            return;
+          }
+          if (msg.type === 'scan_ack') {
+            if (typeof window.handleScanAck === 'function') window.handleScanAck(msg);
+            return;
+          }
+          if (msg.type === 'scan_cancel') {
+            this._endRemoteScan(String(msg.requestId || ''), msg.reason || 'cancelled');
+            if (typeof window.handleScanCancel === 'function') window.handleScanCancel(msg);
             return;
           }
           if (msg.type === 'scan_error') {
-            const waiter = this._remoteScanWaiters.get(String(msg.requestId || ''));
-            if (waiter) {
-              this._remoteScanWaiters.delete(String(msg.requestId || ''));
-              waiter.reject(new Error(msg.error || 'remote scan failed'));
-            }
+            this._endRemoteScan(String(msg.requestId || ''), msg.error || 'remote scan failed');
+            if (typeof window.handleScanError === 'function') window.handleScanError(msg);
             return;
           }
 
@@ -236,41 +248,92 @@ const Sync = {
     return this.remoteDevices;
   },
 
-  async requestRemoteScan({ targetDeviceId, kind = 'barcode', context = null } = {}) {
-    const requestId = (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random();
-    const requesterDeviceId = ChangeLog._deviceId();
-    if (!targetDeviceId) throw new Error('scanner device required');
-    return new Promise((resolve, reject) => {
-      const key = String(requestId);
-      const timer = setTimeout(() => {
-        const waiter = this._remoteScanWaiters.get(key);
-        if (waiter) { this._remoteScanWaiters.delete(key); reject(new Error('remote scan timeout')); }
-      }, 60000);
-      this._remoteScanWaiters.set(key, { resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); } });
-      const payload = { type: 'scan_request', requestId, requesterDeviceId, targetDeviceId, kind, context };
-      try {
-        if (this.ws && this.ws.readyState === 1) {
-          this.ws.send(JSON.stringify(payload));
-          return;
-        }
-      } catch (_) {}
-      const url = Net.baseUrl() || 'http://localhost:8787';
-      fetch(url + '/api/scan/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-        .then(r => { if (!r.ok) throw new Error('scanner device offline'); })
-        .catch(err => { this._remoteScanWaiters.delete(String(requestId)); reject(err); });
-    });
-  },
+  _newRequestId() { return (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random(); },
 
-  async completeRemoteScan({ requestId, requesterDeviceId, code, context = null } = {}) {
-    const payload = { type: 'scan_result', requestId, requesterDeviceId, code: String(code || ''), context };
+  // يرسل رسالة مسح عبر WebSocket وإلا عبر HTTP. يعيد true/false
+  async _relay(payload, httpPath) {
     try {
       if (this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(payload)); return true; }
     } catch (_) {}
     const url = Net.baseUrl() || 'http://localhost:8787';
     try {
-      const r = await fetch(url + '/api/scan/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r = await fetch(url + httpPath, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       return r.ok;
     } catch (_) { return false; }
+  },
+
+  // طلب مسح لمرة واحدة: يعيد وعدًا بالرمز. يُرفض عند الإلغاء/الانقطاع/المهلة
+  async requestRemoteScan({ targetDeviceId, kind = 'barcode', context = null } = {}) {
+    if (!targetDeviceId) throw new Error('scanner device required');
+    const requestId = this._newRequestId();
+    const key = String(requestId);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this._remoteScanWaiters.delete(key)) {
+          this.sendScanCancel({ requestId, to: targetDeviceId, reason: 'timeout' });
+          reject(new Error('remote scan timeout'));
+        }
+      }, 60000);
+      this._remoteScanWaiters.set(key, { resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); } });
+      const payload = { type: 'scan_request', requestId, requesterDeviceId: ChangeLog._deviceId(), from: ChangeLog._deviceId(), targetDeviceId, kind, mode: 'once', context };
+      this._relay(payload, '/api/scan/request').then(ok => {
+        if (!ok) { this._remoteScanWaiters.get(key) && this._remoteScanWaiters.get(key).reject(new Error('scanner device offline')); this._remoteScanWaiters.delete(key); }
+      });
+    });
+  },
+
+  // مسح مستمر: يعيد { requestId, stop() }. onCode يُستدعى لكل باركود، onEnd عند النهاية
+  async openRemoteScanStream({ targetDeviceId, kind = 'barcode', context = null, onCode, onEnd } = {}) {
+    if (!targetDeviceId) throw new Error('scanner device required');
+    const requestId = this._newRequestId();
+    const key = String(requestId);
+    const self = this;
+    const sess = {
+      requestId, targetDeviceId, ended: false,
+      onCode: (code, msg) => { if (typeof onCode === 'function') onCode(code, msg); },
+      onEnd: (reason) => { if (sess.ended) return; sess.ended = true; self._remoteScanSessions.delete(key); if (typeof onEnd === 'function') onEnd(reason); },
+      stop() { if (sess.ended) return; self.sendScanCancel({ requestId, to: targetDeviceId, reason: 'closed' }); sess.ended = true; self._remoteScanSessions.delete(key); }
+    };
+    this._remoteScanSessions.set(key, sess);
+    const payload = { type: 'scan_request', requestId, requesterDeviceId: ChangeLog._deviceId(), from: ChangeLog._deviceId(), targetDeviceId, kind, mode: 'stream', context };
+    const ok = await this._relay(payload, '/api/scan/request');
+    if (!ok) { this._remoteScanSessions.delete(key); throw new Error('scanner device offline'); }
+    return sess;
+  },
+
+  // إنهاء طلب/جلسة عند الإلغاء أو الخطأ (من الطرف الآخر أو الخادم)
+  _endRemoteScan(key, reason) {
+    const waiter = this._remoteScanWaiters.get(key);
+    if (waiter) { this._remoteScanWaiters.delete(key); waiter.reject(new Error(String(reason))); }
+    const sess = this._remoteScanSessions.get(key);
+    if (sess) sess.onEnd(String(reason));
+  },
+
+  // جهاز ماسح يدفع باركود لهذا الجهاز دون طلب سابق: نعالجه ونردّ بتأكيد
+  _handlePushedScan(msg) {
+    let res = { ok: false, text: '' };
+    try {
+      res = (typeof window.handleIncomingScan === 'function')
+        ? window.handleIncomingScan(String(msg.code || ''), msg.requestId || null, msg.context || null)
+        : res;
+    } catch (e) { console.warn('pushed scan:', e); }
+    this.sendScanAck({ requestId: msg.requestId, to: msg.from, ok: !!(res && res.ok), text: (res && res.text) || '', name: (res && res.name) || '' });
+  },
+
+  // الجهاز الماسح يرسل الرمز (للمرة الواحدة أو المستمر أو الدفع)
+  async completeRemoteScan({ requestId, requesterDeviceId, code, context = null, stream = false, push = false } = {}) {
+    const payload = { type: 'scan_result', requestId, requesterDeviceId, from: ChangeLog._deviceId(), code: String(code || ''), context, stream: !!stream, push: !!push };
+    return this._relay(payload, '/api/scan/result');
+  },
+
+  sendScanAck({ requestId, to, ok = true, text = '', name = '' } = {}) {
+    if (!to) return Promise.resolve(false);
+    return this._relay({ type: 'scan_ack', requestId, to, from: ChangeLog._deviceId(), ok: !!ok, text: String(text || ''), name: String(name || '') }, '/api/scan/relay');
+  },
+
+  sendScanCancel({ requestId, to, reason = 'closed' } = {}) {
+    if (!to) return Promise.resolve(false);
+    return this._relay({ type: 'scan_cancel', requestId, to, from: ChangeLog._deviceId(), reason }, '/api/scan/relay');
   },
 
   async sendScan(barcode, targetDeviceId, requestId) {
