@@ -21,6 +21,8 @@ function renderSettings() {
   if (el('setScannerAvoidDup')) el('setScannerAvoidDup').checked = s.scannerAvoidDuplicate !== false;
   if (el('setScannerUsb')) el('setScannerUsb').checked = s.scannerUsb !== false;
 
+  refreshBackupRestoreStatus();
+
   const net = document.getElementById('netSettings');
   if (net) {
     const m = DB.mode();
@@ -93,4 +95,53 @@ function showSyncStatus() {
     <div class="cart-item"><span>الحالة:</span><strong>${Sync.state === 'synced' ? '✅ تمت المزامنة' : Sync.state === 'syncing' ? '🔄 جارٍ المزامنة' : Sync.state === 'conflict' ? '⚠️ تعارض' : '⏳ بانتظار الاتصال'}</strong></div>
     <div class="cart-item"><span>آخر مزامنة:</span><strong>${Sync.lastSyncAt ? new Date(Sync.lastSyncAt).toLocaleTimeString() : '—'}</strong></div>
     <div class="modal-actions"><button class="btn btn-danger" onclick="closeModal()">إغلاق</button></div>`);
+}
+
+
+async function refreshBackupRestoreStatus() {
+  const el = document.getElementById('backupRestoreStatus');
+  if (!el) return;
+  const mode = (typeof DB !== 'undefined' && DB.mode) ? DB.mode() : {};
+  if (mode.current !== 'host') {
+    el.textContent = 'لأمان البيانات، افتح هذه الصفحة من الجهاز الرئيسي (المضيف) لتنفيذ الاستعادة.';
+    return;
+  }
+  try {
+    const response = await fetch(Net.baseUrl() + '/api/backups');
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error('تعذر قراءة النسخ');
+    const list = Array.isArray(data.backups) ? data.backups : [];
+    if (!list.length) { el.textContent = 'لا توجد نسخة احتياطية محفوظة بعد.'; return; }
+    const latest = list[0];
+    el.textContent = 'أحدث نسخة: ' + latest.replace(/^backup-/, '').replace(/\.json$/, '').replace(/T/, ' ') + ' — عدد النسخ: ' + list.length;
+  } catch (e) {
+    el.textContent = 'تعذر الاتصال بمجلد النسخ الاحتياطية. تأكد أن الخادم يعمل على الجهاز الرئيسي.';
+  }
+}
+
+async function restoreLatestBackup() {
+  const mode = (typeof DB !== 'undefined' && DB.mode) ? DB.mode() : {};
+  if (mode.current !== 'host') { alert('نفّذ الاستعادة من الجهاز الرئيسي الذي يستضيف بيانات المحل.'); return; }
+  const status = document.getElementById('backupRestoreStatus');
+  try {
+    const base = Net.baseUrl();
+    const listResponse = await fetch(base + '/api/backups');
+    const listData = await listResponse.json();
+    if (!listResponse.ok || !listData.ok) throw new Error('تعذر الوصول إلى النسخ الاحتياطية');
+    const list = Array.isArray(listData.backups) ? listData.backups : [];
+    if (!list.length) { alert('لا توجد نسخة احتياطية لاستعادتها حتى الآن.'); return; }
+    const name = list[0];
+    const date = name.replace(/^backup-/, '').replace(/\.json$/, '').replace(/T/, ' ');
+    if (!confirm('سيتم استعادة النسخة المؤرخة ' + date + '. قد تختفي التغييرات التي تمت بعدها. سيحفظ التطبيق نسخة أمان قبل الاستعادة. هل تريد المتابعة؟')) return;
+    if (status) status.textContent = 'جارٍ استعادة البيانات، يرجى عدم إغلاق التطبيق...';
+    const response = await fetch(base + '/api/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'فشلت الاستعادة');
+    if (status) status.textContent = 'تمت الاستعادة بنجاح. جارٍ تحديث التطبيق...';
+    alert('تمت استعادة البيانات. تم حفظ نسخة أمان باسم: ' + result.safetyBackup);
+    setTimeout(() => location.reload(), 700);
+  } catch (e) {
+    if (status) status.textContent = 'تعذرت الاستعادة: ' + (e.message || 'خطأ غير معروف');
+    alert('تعذرت استعادة البيانات: ' + (e.message || 'خطأ غير معروف'));
+  }
 }
