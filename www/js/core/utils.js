@@ -51,6 +51,7 @@ function openModal(html) {
   const m = document.getElementById('modal');
   const c = document.getElementById('modalContent');
   if (!m || !c) return;
+  if (typeof clearModalScan === 'function') clearModalScan();   // أي نافذة جديدة تسجّل مسحها بنفسها بعد الفتح
   c.innerHTML = html;
   m.classList.remove('hidden');
 }
@@ -58,6 +59,40 @@ function openModal(html) {
 function closeModal() {
   const m = document.getElementById('modal');
   if (m) m.classList.add('hidden');
+  if (typeof clearModalScan === 'function') clearModalScan();
+}
+
+/* ============================================================
+   المبلغ المقبوض / الباقي للزبون (اختياري) — مشترك بين البيع والديون
+   ============================================================ */
+// يحسب الباقي: given = ما دفعه الزبون، required = المطلوب منه
+function calcChange(given, required) {
+  given = Number(given) || 0;
+  required = Number(required) || 0;
+  if (given <= 0) return { given: 0, change: 0, short: 0, active: false };
+  return { given, change: Math.max(0, given - required), short: Math.max(0, required - given), active: true };
+}
+
+function cashGivenFieldHTML(inputId, onInputJs) {
+  return `
+    <label class="lbl">💵 المبلغ المقبوض من الزبون (اختياري)</label>
+    <input id="${inputId}" type="number" inputmode="decimal" min="0" placeholder="مثال: 200" oninput="${onInputJs}">
+    <div id="${inputId}Info" class="change-info"></div>`;
+}
+
+function showChangeInfo(inputId, required) {
+  const info = document.getElementById(inputId + 'Info');
+  const inp = document.getElementById(inputId);
+  if (!info || !inp) return;
+  const r = calcChange(inp.value, required);
+  if (!r.active) { info.innerHTML = ''; info.className = 'change-info'; return; }
+  if (r.short > 0) {
+    info.className = 'change-info bad';
+    info.innerHTML = '⚠️ المبلغ ناقص: <b>' + fmt(r.short) + '</b>';
+  } else {
+    info.className = 'change-info ok';
+    info.innerHTML = '🔙 الباقي للزبون: <b>' + fmt(r.change) + '</b>';
+  }
 }
 
 function exportCSV(filename, headers, rows) {
