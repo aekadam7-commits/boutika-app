@@ -84,7 +84,6 @@ function renderDashboard() {
   if (typeof renderShiftCard === 'function') renderShiftCard();
 
   // (أُلغي تنبيه حجم 10MB: التخزين غير محدود ولا يُحذف شيء تلقائيًا)
-  try { const elWarn = document.getElementById('storageWarning'); if (elWarn) elWarn.style.display = 'none'; } catch (e) {}
 }
 
 function renderNetworkInfo() {

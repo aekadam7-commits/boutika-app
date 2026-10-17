@@ -4,7 +4,6 @@
 
 let cart = [];
 let payType = 'cash';
-let remoteScanListenerRegistered = false;
 let invoiceDiscount = { type: 'none', value: 0 };
 let calcState = { display: '0', prev: null, op: null, waitNext: false };
 
@@ -18,17 +17,6 @@ function renderPOSCustomers() {
       return `<option value="${c.id}">${escapeHtml(c.name)}${disc} (${fmtNum(c.balance || 0)})</option>`;
     }).join('');
   if (cur) sel.value = cur;
-}
-
-function registerRemoteScanListener() {
-  if (remoteScanListenerRegistered) return;
-  if (typeof Sync === 'undefined' || !Sync.onScan) return;
-  Sync.onScan((barcode) => {
-    const p = DB.products().find(x => x.barcode === barcode);
-    if (p) { addToCart(p.id); toast('📡 مسح بعيد: ' + p.name); playSuccessBeep(); vibrate([60, 30, 60]); }
-    else { toast('📡 مسح بعيد — منتج غير معروف: ' + barcode, true); playErrorBeep(); }
-  });
-  remoteScanListenerRegistered = true;
 }
 
 function searchPOS() {

@@ -139,7 +139,9 @@ function closeScanner() {
 
 function handleScan(text) {
   if (remoteScannerMode) {
-    Promise.resolve((typeof Sync !== 'undefined' && Sync.sendScan) ? Sync.sendScan(text) : false).then(sent => {
+    const targetDeviceId = (typeof Net !== 'undefined' && Net.host && Net.host.id) ? Net.host.id : null;
+    const requestId = (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random();
+    Promise.resolve((typeof Sync !== 'undefined' && Sync.sendScan) ? Sync.sendScan(text, targetDeviceId, requestId) : false).then(sent => {
       if (sent) toast('📡 تم إرسال: ' + text);
       else { toast('⚠️ لا يوجد اتصال بالجهاز الآخر', true); playErrorBeep(); }
     });
@@ -191,15 +193,24 @@ function startRemoteScanner() {
     return;
   }
   remoteScannerMode = true;
-  toast('📡 المسح عن بُعد: ما تمسحه سيظهر في الجهاز الآخر');
+  toast('📡 المسح عن بُعد: ما تمسحه سيعود للجهاز المرتبط');
   openScanner('remote');
 }
 
-// استقبال باركود جاء من جهاز آخر، ويُعالَج حسب الشاشة المفتوحة
-function handleIncomingScan(code) {
+// واجهة عامة للوحدات المستقبلية: أي شاشة تستطيع تسجيل معالج للباركود عن بُعد.
+let remoteScanHandler = null;
+function registerRemoteScanHandler(handler) { remoteScanHandler = typeof handler === 'function' ? handler : null; }
+function clearRemoteScanHandler() { remoteScanHandler = null; }
+
+// استقبال باركود جاء من جهاز آخر، ويُعاد إلى العملية التي كانت تنتظر المسح.
+function handleIncomingScan(code, requestId) {
   code = String(code || '').trim();
   if (!code) return;
   try {
+    if (remoteScanHandler) {
+      const handled = remoteScanHandler(code, requestId);
+      if (handled !== false) return;
+    }
     const f = document.getElementById('pBarcode');
     if (f && f.offsetParent !== null) {                       // نافذة منتج مفتوحة: املأ حقل الباركود
       f.value = code;
@@ -231,6 +242,8 @@ function handleIncomingScan(code) {
   } catch (e) { console.warn('handleIncomingScan:', e); }
 }
 window.handleIncomingScan = handleIncomingScan;
+window.registerRemoteScanHandler = registerRemoteScanHandler;
+window.clearRemoteScanHandler = clearRemoteScanHandler;
 
 function stopRemoteScanner() {
   remoteScannerMode = false;
