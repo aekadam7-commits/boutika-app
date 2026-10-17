@@ -366,6 +366,12 @@
 
     <div id="tab-settings" class="tab-content hidden">
       <div class="card">
+        <h3>🛡️ استعادة البيانات</h3>
+        <p class="small">استعادة أحدث نسخة احتياطية يومية محفوظة على الخادم. ينشئ التطبيق نسخة أمان من البيانات الحالية قبل الاستعادة.</p>
+        <div id="backupRestoreStatus" class="small" style="margin:8px 0">سيتم التحقق من النسخ الاحتياطية عند فتح الإعدادات.</div>
+        <button class="btn btn-warning btn-block" onclick="restoreLatestBackup()">♻️ استعادة أحدث نسخة</button>
+      </div>
+      <div class="card">
         <h3>🏪 المحل</h3>
         <label class="lbl">الاسم</label><input id="setShopName">
         <label class="lbl">العنوان</label><input id="setShopAddress">
