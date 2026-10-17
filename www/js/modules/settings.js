@@ -1,5 +1,5 @@
 /* ============================================================
-   Boutik v4 — الإعدادات (مع إدارة البيانات + إعدادات الماسح)
+   Boutik v4 — الإعدادات
    ============================================================ */
 
 function renderSettings() {
@@ -29,11 +29,9 @@ function renderSettings() {
       ${m.host ? '<div class="cart-item"><span>الخادم:</span><strong dir="ltr">' + m.host.ip + ':' + m.host.port + '</strong></div>' : ''}
       <div class="cart-item"><span>معرّف الجهاز:</span><strong dir="ltr" style="font-size:11px">${devId}</strong></div>
       <button class="btn btn-primary btn-block" onclick="scanForHosts()">🔄 البحث عن أجهزة رئيسية</button>
-      <button class="btn btn-info btn-block" onclick="Sync.flush()">📤 مزامنة الآن</button>
     `;
   }
 
-  if (typeof renderDataManagement === 'function') renderDataManagement();
 }
 
 function saveShopSettings() {
@@ -91,10 +89,10 @@ function showSyncStatus() {
     <div class="cart-item"><span>إجمالي السجلات:</span><strong>${log.length}</strong></div>
     <div class="cart-item"><span>في الانتظار:</span><strong>${pending}</strong></div>
     <div class="cart-item"><span>الوضع:</span><strong>${DB.mode().current || '—'}</strong></div>
-    <div class="cart-item"><span>WebSocket:</span><strong>${Sync.ws && Sync.ws.readyState === 1 ? '🟢 متصل' : '🔴 غير متصل'}</strong></div>
+    <div class="cart-item"><span>الاتصال:</span><strong>${Sync.ws && Sync.ws.readyState === 1 ? '🟢 متصل' : '🔴 غير متصل'}</strong></div>
+    <div class="cart-item"><span>الحالة:</span><strong>${Sync.state === 'synced' ? '✅ تمت المزامنة' : Sync.state === 'syncing' ? '🔄 جارٍ المزامنة' : Sync.state === 'conflict' ? '⚠️ تعارض' : '⏳ بانتظار الاتصال'}</strong></div>
+    <div class="cart-item"><span>آخر مزامنة:</span><strong>${Sync.lastSyncAt ? new Date(Sync.lastSyncAt).toLocaleTimeString() : '—'}</strong></div>
     <div class="modal-actions">
-      <button class="btn btn-primary" onclick="Sync.flush().then(()=>toast('تم الإرسال'))">📤 إرسال الآن</button>
-      <button class="btn btn-info" onclick="Sync.pull()">📥 استلام</button>
       <button class="btn btn-danger" onclick="closeModal()">إغلاق</button>
     </div>`);
 }
