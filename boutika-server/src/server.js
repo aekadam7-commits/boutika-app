@@ -84,7 +84,7 @@ app.get('/api/state', guard, (req, res) => {
 app.post('/api/scan', guard, (req, res) => {
   const barcode = req.body && req.body.barcode;
   if (!barcode) return res.status(400).json({ ok: false });
-  broadcast({ type: 'scan', barcode: String(barcode) });
+  broadcast({ type: 'scan', barcode: String(barcode), from: req.body.from });
   res.json({ ok: true });
 });
 
@@ -130,7 +130,7 @@ wss.on('connection', ws => {
     try {
       const d = JSON.parse(msg);
       if (d.type === 'push' && Array.isArray(d.entries)) acceptEntries(d.entries, ws);
-      if (d.type === 'scan' && d.barcode) broadcast({ type: 'scan', barcode: String(d.barcode) }, ws);
+      if (d.type === 'scan' && d.barcode) broadcast({ type: 'scan', barcode: String(d.barcode), from: d.from }, ws);
     } catch (e) { console.warn('WS msg error:', e.message); }
   });
 });
