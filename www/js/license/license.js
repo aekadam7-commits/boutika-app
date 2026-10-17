@@ -248,6 +248,15 @@ async function stopLicenseScan() {
   }
 }
 
+async function startRemoteLicenseScan() {
+  if (typeof startRemoteScanner !== 'function') {
+    const err = document.getElementById('licenseError');
+    if (err) err.textContent = '⚠️ المسح عن بُعد غير متاح حاليًا';
+    return;
+  }
+  await startRemoteScanner('qr', { target: 'license' });
+}
+
 async function startLicenseScan() {
   const err = document.getElementById('licenseError');
   if (err) err.textContent = '';
