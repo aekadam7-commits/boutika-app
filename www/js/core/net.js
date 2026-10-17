@@ -82,15 +82,15 @@ const Net = {
       return;
     }
     el.innerHTML = list.map(h => `
-      <div class="host-item" onclick="Net.pickHost('${h.ip}', ${h.port}, '${escapeHtml(h.name)}')">
+      <div class="host-item" onclick="Net.pickHost('${h.ip}', ${h.port}, '${escapeHtml(h.name)}', '${escapeHtml(h.id || '')}')">
         <div><b>${escapeHtml(h.name)}</b><span>${h.ip}:${h.port}</span></div>
         <span>➡️</span>
       </div>
     `).join('');
   },
 
-  pickHost(ip, port, name) {
-    this.setMode('client', { ip, port, name });
+  pickHost(ip, port, name, id) {
+    this.setMode('client', { ip, port, name, id: id || null });
     toast('✅ تم الاتصال بـ ' + name);
     setTimeout(() => location.reload(), 600);
   }
@@ -123,9 +123,3 @@ function updateSyncStatus() {
 }
 
 function scanForHosts() { Net.scanForHosts(); }
-function connectManual() {
-  const v = (document.getElementById('manualHost').value || '').trim();
-  if (!v) return;
-  const [ip, port] = v.split(':');
-  Net.pickHost(ip, +(port || 8787), 'Boutik');
-}

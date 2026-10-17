@@ -39,6 +39,7 @@ const Sync = {
     try {
       this.ws = new WebSocket(url);
       this.ws.onopen = () => {
+        try { this.ws.send(JSON.stringify({ type: 'hello-device', deviceId: ChangeLog._deviceId() })); } catch (_) {}
         Net.online = true;
         if (typeof updateNetStatus === 'function') updateNetStatus();
         this._setState('syncing');
@@ -47,7 +48,11 @@ const Sync = {
       this.ws.onmessage = ev => {
         try {
           const msg = JSON.parse(ev.data);
-          if (msg.type === 'hello') { if (msg.seq) this._setSeq(msg.seq); return; }
+          if (msg.type === 'hello') {
+            // لا نرفع seq عند hello: يجب أولًا سحب كل ما فاتنا من آخر seq محلي.
+            this.afterConnect();
+            return;
+          }
           if (msg.type === 'ack') {
             if (msg.accepted && msg.accepted.length) ChangeLog.markSynced(msg.accepted);
             if (msg.rejected && msg.rejected.length) this.handleRejected(msg.rejected);
@@ -59,8 +64,8 @@ const Sync = {
           if (msg.type === 'batch' && Array.isArray(msg.entries)) this.applyMany(msg.entries);
           if (msg.type === 'scan' && msg.barcode) {
             if (msg.from && msg.from === ChangeLog._deviceId()) return;
-            if (typeof window.handleIncomingScan === 'function') window.handleIncomingScan(String(msg.barcode));
-            else if (typeof this.onScanCallback === 'function') this.onScanCallback(msg.barcode);
+            if (typeof window.handleIncomingScan === 'function') window.handleIncomingScan(String(msg.barcode), msg.requestId || null);
+            else if (typeof this.onScanCallback === 'function') this.onScanCallback(msg.barcode, msg.requestId || null);
           }
         } catch (e) { console.warn('WS msg error:', e); }
       };
@@ -102,8 +107,10 @@ const Sync = {
   onRemoteChange(entry) { return this.applyMany([entry]); },
 
   async afterConnect() {
-    try { await this.pull(); } catch (_) {}
-    try { await this.flush(); } catch (_) {}
+    if (this._connectingSync) return;
+    this._connectingSync = true;
+    try { await this.pull(); await this.flush(); await this.pull(); }
+    finally { this._connectingSync = false; this._updateStateFromQueue(); }
   },
 
   async syncNow() {
@@ -173,6 +180,21 @@ const Sync = {
       if (data.seq) this._setSeq(data.seq);
       return n;
     } catch (_) { return 0; }
+  },
+
+  async sendScan(barcode, targetDeviceId, requestId) {
+    const code = String(barcode || '').trim();
+    if (!code) return false;
+    const from = (typeof ChangeLog !== 'undefined' && ChangeLog._deviceId) ? ChangeLog._deviceId() : '';
+    const payload = { type: 'scan', barcode: code, from, targetDeviceId: targetDeviceId || null, requestId: requestId || null };
+    if (this.ws && this.ws.readyState === 1) {
+      try { this.ws.send(JSON.stringify(payload)); return true; } catch (_) {}
+    }
+    const url = Net.baseUrl() || 'http://localhost:8787';
+    try {
+      const r = await fetch(url + '/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      return r.ok;
+    } catch (_) { return false; }
   },
 
   onScan(callback) { this.onScanCallback = callback; }
