@@ -37,11 +37,16 @@ function openPayModal(invoiceId) {
     <h3>💰 تسجيل دفعة</h3>
     <div class="small">${inv.number} — المتبقي: ${fmt(inv.due)}</div>
     <label class="lbl">المبلغ المدفوع</label>
-    <input id="payAmount" type="number" inputmode="decimal" value="${inv.due}" min="0" max="${inv.due}">
+    <input id="payAmount" type="number" inputmode="decimal" value="${inv.due}" min="0" max="${inv.due}" oninput="invPayChange(${inv.due})">
+    ${cashGivenFieldHTML('payGiven', 'invPayChange(' + inv.due + ')')}
     <div class="modal-actions">
       <button class="btn btn-success" onclick="confirmPay('${invoiceId}')">💾</button>
       <button class="btn btn-danger" onclick="closeModal()">إلغاء</button>
     </div>`);
+}
+
+function invPayChange(due) {
+  showChangeInfo('payGiven', Math.min(+(document.getElementById('payAmount')?.value) || 0, due));
 }
 
 function confirmPay(invoiceId) {
@@ -50,6 +55,9 @@ function confirmPay(invoiceId) {
   const inv = DB.invoices().find(i => i.id === invoiceId);
   if (!inv) return;
   const actual = Math.min(amt, inv.due);
+  const given = +(document.getElementById('payGiven')?.value) || 0;
+  if (given > 0 && given < actual) { toast('⚠️ المبلغ المقبوض أقل من الدفعة (' + fmt(actual) + ')', true); return; }
+  const change = given > 0 ? given - actual : 0;
   inv.paid = (inv.paid || 0) + actual;
   inv.due = Math.max(0, inv.due - actual);
   inv.status = inv.due === 0 ? 'paid' : (inv.paid > 0 ? 'partial' : 'credit');
@@ -57,7 +65,8 @@ function confirmPay(invoiceId) {
 
   upsertRow('payments', {
     id: uuid(), invoice_id: invoiceId, customer_id: inv.customer_id,
-    amount: actual, user: currentUser.username, created_at: now()
+    amount: actual, given: given, change: change,
+    user: currentUser.username, created_at: now()
   });
 
   if (inv.customer_id) {
@@ -68,7 +77,7 @@ function confirmPay(invoiceId) {
   audit('payment', `${inv.number} — ${fmt(actual)}`);
   closeModal();
   renderInvoices();
-  toast('✅ تم تسجيل الدفعة');
+  toast('✅ تم تسجيل الدفعة' + (given > 0 ? ' — الباقي للزبون: ' + fmt(change) : ''));
 }
 
 /* ============ إرجاع فاتورة ============ */
@@ -220,6 +229,8 @@ function printInvoice(invoiceId) {
       ${discountHTML}
       <div class="total-row"><span>المجموع:</span><span>${fmt(inv.total)}</span></div>
       <div class="total-row"><span>المدفوع:</span><span>${fmt(inv.paid)}</span></div>
+      ${inv.given > 0 ? `<div class="row"><span>المقبوض من الزبون:</span><span>${fmt(inv.given)}</span></div>
+      <div class="row"><span>الباقي للزبون:</span><span>${fmt(inv.change || 0)}</span></div>` : ''}
       ${inv.due > 0 ? `<div class="total-row" style="color:#c00"><span>الباقي:</span><span>${fmt(inv.due)}</span></div>` : ''}
     </div>
     <div class="center small">شكرًا لزيارتكم 🌟</div>

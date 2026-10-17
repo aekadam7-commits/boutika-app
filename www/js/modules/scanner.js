@@ -62,12 +62,26 @@ function scanSetLast(t, ok) {
 }
 
 /* ---------------- التوجيه المركزي ----------------
-   ctx.target: 'pos' | 'product' | 'product-barcode' | 'license' | null(تلقائي)
+   ctx.target: 'pos' | 'product' | 'product-barcode' | 'modal' | 'license' | null(تلقائي)
    يعيد: { ok, status, name?, text }
    status: added | nostock | unknown | opened | created | filled | locked | custom | empty */
 let remoteScanHandler = null;
 function registerRemoteScanHandler(handler) { remoteScanHandler = typeof handler === 'function' ? handler : null; }
 function clearRemoteScanHandler() { remoteScanHandler = null; }
+
+/* ---- مسح النوافذ (Modals): أي نافذة تسجّل معالجًا خاصًا بها ----
+   handler(code) → { ok, text, keepOpen? }   (keepOpen: تبقى الكاميرا مفتوحة للمسح المتتابع)
+   يُمسح المعالج تلقائيًا عند openModal/closeModal فلا يبقى معالج قديم. */
+let modalScanHandler = null;
+function registerModalScan(handler) { modalScanHandler = typeof handler === 'function' ? handler : null; }
+function clearModalScan() { modalScanHandler = null; }
+function hasModalScan() {
+  const m = document.getElementById('modal');
+  return !!(modalScanHandler && m && !m.classList.contains('hidden'));
+}
+window.registerModalScan = registerModalScan;
+window.clearModalScan = clearModalScan;
+window.hasModalScan = hasModalScan;
 
 function routeScan(code, ctx) {
   ctx = ctx || {};
@@ -84,6 +98,13 @@ function routeScan(code, ctx) {
     if (appEl && !appEl.classList.contains('active')) {
       return { ok: false, status: 'locked', text: '🔒 سجّل الدخول أولاً' };
     }
+
+    // نافذة مفتوحة سجّلت معالج مسح (مشتريات، جرد، ...)
+    if (hasModalScan()) {
+      const r = modalScanHandler(code, ctx);
+      if (r) return r;
+    }
+    if (target === 'modal') return { ok: false, status: 'nomodal', text: '⚠️ لا توجد نافذة مفتوحة تستقبل المسح' };
 
     const f = document.getElementById('pBarcode');
     const modalHasField = !!(f && f.offsetParent !== null);
@@ -379,7 +400,7 @@ function handleScan(text) {
   const res = routeScan(text, { target: scannerTarget, source: 'camera' });
   scanFeedback(res);
   // نقطة البيع تبقى مفتوحة للمسح المتتابع؛ غيرها يُغلق بعد النجاح
-  if (scannerTarget !== 'pos' && res.ok) closeScanner('done');
+  if (scannerTarget !== 'pos' && res.ok && !res.keepOpen) closeScanner('done');
 }
 
 /* ---------------- الإغلاق ---------------- */

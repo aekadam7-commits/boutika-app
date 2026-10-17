@@ -4,6 +4,8 @@
    • يعمل في أي نافذة دون الحاجة للنقر على حقل البحث.
    • في حقل «posSearch» يُضيف المنتج للسلة ويفرّغ الحقل.
    • في حقل «pBarcode» يملأ الحقل كما هو.
+   • أي حقل فيه data-scan (مثل حقل المشتريات والجرد) يستقبل المسح عبر routeScan.
+   • أي نافذة سجّلت registerModalScan() تستقبل المسح حتى دون التركيز على حقل.
    • في أي حقل آخر (اسم، كمية...) لا يتدخل أبدًا.
    ============================================================ */
 (function () {
@@ -70,13 +72,15 @@
       if (scanOverlayOpen) return;                    // الكاميرا مفتوحة: لا نتدخل
 
       if (isEditable(el)) {
-        if (el.id === 'posSearch') {
+        // أي حقل يحمل data-scan يستقبل المسح (posSearch + حقول المشتريات والجرد)
+        if (el.id === 'posSearch' || (el.dataset && el.dataset.scan)) {
           e.preventDefault(); e.stopPropagation();
           if (el.value.endsWith(code)) el.value = el.value.slice(0, el.value.length - code.length);
-          const res = routeScan(code, { target: 'pos', source: 'usb' });
+          const isPos = el.id === 'posSearch';
+          const res = routeScan(code, { target: isPos ? 'pos' : (el.dataset.scan === 'modal' ? 'modal' : null), source: 'usb' });
           finish(res);
           if (res.ok) el.value = '';
-          if (typeof searchPOS === 'function') searchPOS();
+          if (isPos && typeof searchPOS === 'function') searchPOS();
           return;
         }
         if (el.id === 'pBarcode') { e.preventDefault(); return; }   // الحقل امتلأ أصلاً
@@ -87,7 +91,8 @@
       const modal = document.getElementById('modal');
       const modalOpen = modal && !modal.classList.contains('hidden');
       const pb = document.getElementById('pBarcode');
-      if (modalOpen && !(pb && pb.offsetParent !== null)) {
+      const modalCanScan = typeof hasModalScan === 'function' && hasModalScan();
+      if (modalOpen && !modalCanScan && !(pb && pb.offsetParent !== null)) {
         e.preventDefault(); e.stopPropagation();
         toast('⚠️ أغلق النافذة المفتوحة ثم امسح', true);
         playErrorBeep();

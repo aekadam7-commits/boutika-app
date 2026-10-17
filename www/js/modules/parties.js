@@ -77,13 +77,19 @@ function openPayCustomerModal(id) {
       <div style="display:flex;justify-content:space-between"><span>عدد الفواتير المعلقة:</span><b>${unpaidInvoices.length}</b></div>
     </div>
     <label class="lbl">المبلغ المدفوع</label>
-    <input id="payCustAmt" type="number" inputmode="decimal" value="${balance}" min="0" max="${balance}">
+    <input id="payCustAmt" type="number" inputmode="decimal" value="${balance}" min="0" max="${balance}" oninput="custPayChange(${balance})">
+    ${cashGivenFieldHTML('payCustGiven', 'custPayChange(' + balance + ')')}
     <label class="lbl">ملاحظة (اختياري)</label>
     <input id="payCustNote" placeholder="مثال: دفعة نقدية">
     <div class="modal-actions">
       <button class="btn btn-success" onclick="confirmPayCustomer('${id}')">💾 حفظ</button>
       <button class="btn btn-danger" onclick="closeModal()">إلغاء</button>
     </div>`);
+}
+
+function custPayChange(balance) {
+  const amt = Math.min(+(document.getElementById('payCustAmt')?.value) || 0, balance);
+  showChangeInfo('payCustGiven', amt);
 }
 
 function confirmPayCustomer(id) {
@@ -96,11 +102,16 @@ function confirmPayCustomer(id) {
   if (amt <= 0) { toast('أدخل مبلغًا صحيحًا', true); return; }
   if (amt > balance) amt = balance;
 
+  const given = +(document.getElementById('payCustGiven')?.value) || 0;
+  if (given > 0 && given < amt) { toast('⚠️ المبلغ المقبوض أقل من الدفعة (' + fmt(amt) + ')', true); return; }
+  const change = given > 0 ? given - amt : 0;
+
   let remaining = amt;
   const unpaidInvoices = DB.invoices()
     .filter(i => i.customer_id === id && i.type === 'sale' && i.due > 0)
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+  let firstPayment = true;
   unpaidInvoices.forEach(inv => {
     if (remaining <= 0) return;
     const pay = Math.min(remaining, inv.due);
@@ -112,8 +123,11 @@ function confirmPayCustomer(id) {
     upsertRow('payments', {
       id: uuid(), invoice_id: inv.id, customer_id: id,
       amount: pay, note: note,
+      // المقبوض/الباقي يخصّان الدفعة كلها، فنسجّلهما مرة واحدة على أول سطر
+      given: firstPayment ? given : 0, change: firstPayment ? change : 0,
       user: currentUser.username, created_at: now()
     });
+    firstPayment = false;
 
     remaining -= pay;
   });
@@ -121,8 +135,8 @@ function confirmPayCustomer(id) {
   c.balance = Math.max(0, balance - amt);
   upsertRow('customers', c);
 
-  audit('customer_payment', `${c.name} — ${fmt(amt)}`);
-  toast(`✅ تم تسجيل ${fmt(amt)} — الرصيد الجديد: ${fmt(c.balance)}`);
+  audit('customer_payment', `${c.name} — ${fmt(amt)}` + (given > 0 ? ` (مقبوض ${fmt(given)}، باقي ${fmt(change)})` : ''));
+  toast(`✅ تم تسجيل ${fmt(amt)} — الرصيد الجديد: ${fmt(c.balance)}` + (given > 0 ? ` — الباقي للزبون: ${fmt(change)}` : ''));
   closeModal();
   renderCustomers();
 }

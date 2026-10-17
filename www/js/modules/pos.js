@@ -299,6 +299,7 @@ function renderCart() {
     if (totalEl) totalEl.textContent = fmt(0);
     if (discEl) discEl.innerHTML = '';
     if (subEl) subEl.innerHTML = '';
+    updateChange();
     return;
   }
 
@@ -346,6 +347,23 @@ function renderCart() {
     } else { discEl.innerHTML = ''; }
   }
   if (totalEl) totalEl.textContent = fmt(total);
+  updateChange();
+}
+
+// المبلغ المطلوب من الزبون الآن حسب طريقة الدفع (null = لا ينطبق، مثل الدين)
+function posAmountNow() {
+  const total = totalCart();
+  if (payType === 'cash') return total;
+  if (payType === 'partial') return +(document.getElementById('posPaid')?.value) || 0;
+  return null;
+}
+
+function updateChange() {
+  const box = document.getElementById('cashGivenBox');
+  const need = posAmountNow();
+  if (box) box.classList.toggle('hidden', need === null);
+  if (need === null) return;
+  showChangeInfo('posGiven', need);
 }
 
 function setPayType(t) {
@@ -359,6 +377,7 @@ function setPayType(t) {
     const paid = document.getElementById('posPaid');
     if (paid && !paid.value) paid.value = totalCart();
   }
+  updateChange();
 }
 
 function checkExpiredInCart() {
@@ -394,6 +413,16 @@ function finalizeSale() {
     if (due > 0 && !customerId) { toast('⚠️ اختر زبونًا', true); return; }
   }
 
+  // المبلغ المقبوض والباقي — اختياريان، لا يؤثران على الحسابات
+  let given = 0, change = 0;
+  if (payType !== 'credit') {
+    given = +(document.getElementById('posGiven')?.value) || 0;
+    if (given > 0) {
+      if (given < paid) { toast('⚠️ المبلغ المقبوض أقل من المبلغ المطلوب (' + fmt(paid) + ')', true); return; }
+      change = given - paid;
+    } else { given = 0; }
+  }
+
   const settings = DB.settings();
   const counter = (DB.counters().invoice || 0) + 1;
   const invoiceNumber = (settings.invPrefix || 'INV-') + String(counter).padStart(5, '0');
@@ -406,6 +435,7 @@ function finalizeSale() {
     discount_type: invoiceDiscount.type, discount_value: invoiceDiscount.value,
     customer_discount_pct: customerDiscount(),
     total: total, paid: paid, due: due,
+    given: given, change: change,
     status: due === 0 ? 'paid' : (paid === 0 ? 'credit' : 'partial'),
     user: currentUser.username,
     shift_id: currentShift.id,
@@ -444,12 +474,14 @@ function finalizeSale() {
   DB.setObj('counters', counters);
 
   audit('sale', invoiceNumber + ' — ' + fmt(total));
-  toast('✅ تم البيع: ' + invoiceNumber);
+  toast('✅ تم البيع: ' + invoiceNumber + (given > 0 ? ' — الباقي للزبون: ' + fmt(change) : ''));
 
   const invoiceId = invoice.id;
   cart = [];
   payType = 'cash';
   invoiceDiscount = { type: 'none', value: 0 };
+  const gEl = document.getElementById('posGiven'); if (gEl) gEl.value = '';
+  const pEl = document.getElementById('posPaid'); if (pEl) pEl.value = 0;
   setPayType('cash');
   renderCart();
   refreshAll();
