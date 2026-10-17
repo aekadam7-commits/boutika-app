@@ -53,13 +53,31 @@ function broadcast(obj, except) {
   wss.clients.forEach(c => { if (c.readyState === 1 && c !== except) c.send(payload); });
 }
 function acceptEntries(list, except) {
-  const accepted = [];
-  for (const e of (list || []).slice(0, MAX_BATCH)) {
-    if (!e || !e.id || !e.table) continue;
+  const accepted = [], rejected = [], duplicates = [];
+  for (const raw of (list || []).slice(0, MAX_BATCH)) {
+    if (!raw || !raw.id || !raw.table || !raw.data) continue;
+    const e = { ...raw };
+    const existingEntry = storage.hasEntry(e.id);
+    if (existingEntry) {
+      duplicates.push(e.id);
+      continue;
+    }
+
+    // Optimistic concurrency: baseSeq is the last server sequence seen by this device.
+    // If another device changed the same logical record after that point, reject the
+    // stale write instead of silently overwriting it.
+    const logicalId = e.data && e.data.id != null ? e.data.id : '__obj__';
+    const current = storage.getLatest(e.table, logicalId);
+    const baseSeq = Number.isFinite(+e.baseSeq) ? +e.baseSeq : 0;
+    if (current && current.seq > baseSeq && current.deviceId !== e.deviceId) {
+      rejected.push({ id: e.id, reason: 'conflict', current });
+      continue;
+    }
+
     accepted.push(storage.append(e));
   }
   if (accepted.length) broadcast({ type: 'batch', entries: accepted }, except);
-  return accepted;
+  return { accepted, rejected, duplicates, seq: storage.getMeta().seq };
 }
 
 /* ---------- الواجهة الثابتة (نفس مجلد www) ---------- */
@@ -72,8 +90,8 @@ app.get('/api/info', (req, res) => {
 app.get('/api/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.post('/api/sync/push', guard, (req, res) => {
-  const accepted = acceptEntries(req.body && req.body.entries);
-  res.json({ ok: true, count: accepted.length, seq: meta.seq });
+  const result = acceptEntries(req.body && req.body.entries);
+  res.json({ ok: true, count: result.accepted.length, accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: meta.seq });
 });
 app.get('/api/sync/pull', guard, (req, res) => {
   res.json({ ok: true, entries: storage.since(+req.query.since || 0), seq: meta.seq });
@@ -129,7 +147,10 @@ wss.on('connection', ws => {
   ws.on('message', msg => {
     try {
       const d = JSON.parse(msg);
-      if (d.type === 'push' && Array.isArray(d.entries)) acceptEntries(d.entries, ws);
+      if (d.type === 'push' && Array.isArray(d.entries)) {
+        const result = acceptEntries(d.entries, ws);
+        try { ws.send(JSON.stringify({ type: 'ack', accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: result.seq })); } catch (_) {}
+      }
       if (d.type === 'scan' && d.barcode) broadcast({ type: 'scan', barcode: String(d.barcode), from: d.from }, ws);
     } catch (e) { console.warn('WS msg error:', e.message); }
   });

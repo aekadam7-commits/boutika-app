@@ -29,6 +29,7 @@ const SNAPSHOT_EVERY = +process.env.BOUTIKA_SNAPSHOT_EVERY || 5000;
 
 // فهرس في الذاكرة: آخر نسخة لكل (table:id) — يمنع تضخم الذاكرة
 const latest = new Map();
+const entryIds = new Map();
 // سجل التغييرات الكامل يبقى على القرص، وفي الذاكرة نحتفظ بنافذة حديثة فقط
 const RECENT_MAX = +process.env.BOUTIKA_RECENT || 20000;
 let recent = [];
@@ -45,6 +46,7 @@ function saveMeta() {
 
 function indexEntry(e) {
   latest.set(e.table + ':' + e.id, e);
+  if (e && e.id) entryIds.set(String(e.id), e);
   recent.push(e);
   if (recent.length > RECENT_MAX) recent.splice(0, recent.length - RECENT_MAX);
 }
@@ -88,6 +90,8 @@ function load() {
 }
 
 function append(entry) {
+  const existing = entry && entry.id ? entryIds.get(String(entry.id)) : null;
+  if (existing) return existing;
   entry.seq = ++meta.seq;
   entry._at = Date.now();
   fs.writeSync(logFd, JSON.stringify(entry) + '\n');
@@ -96,6 +100,9 @@ function append(entry) {
   if (meta.seq % 50 === 0) saveMeta();
   return entry;
 }
+
+function getLatest(table, id) { return latest.get(String(table) + ':' + String(id)) || null; }
+function hasEntry(id) { return !!(id && entryIds.has(String(id))); }
 
 function since(seq) {
   if (recent.length && recent[0].seq > seq + 1) {
@@ -165,7 +172,7 @@ function backup() {
 function flush() { saveMeta(); }
 
 module.exports = {
-  load, append, since, fullState, snapshot, compact, stats, backup, flush,
+  load, append, since, getLatest, hasEntry, fullState, snapshot, compact, stats, backup, flush,
   getMeta: () => meta, saveMeta,
   paths: { DATA_DIR, UPLOAD_DIR, BACKUP_DIR }
 };
