@@ -33,8 +33,6 @@
       <div id="hostList" class="host-list"></div>
       <button class="btn btn-info btn-block" onclick="scanForHosts()">🔄 إعادة البحث</button>
       <label class="lbl">أو أدخل العنوان يدويًا</label>
-      <input id="manualHost" placeholder="192.168.1.10:8787" dir="ltr">
-      <button class="btn btn-primary btn-block" onclick="connectManual()">اتصال</button>
     </div>
     <div class="mode-foot">يمكنك تغيير الوضع لاحقًا من الإعدادات</div>
   </div>
@@ -122,7 +120,6 @@
 
   <main>
     <div id="tab-dashboard" class="tab-content">
-      <div id="storageWarning" style="display:none"></div>
       <div class="stats">
         <div class="stat"><div class="label">مبيعات اليوم</div><div class="value" id="statTodaySales">0</div></div>
         <div class="stat"><div class="label">فواتير اليوم</div><div class="value" id="statTodayInvoices">0</div></div>
