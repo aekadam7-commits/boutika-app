@@ -59,7 +59,6 @@ function switchTab(tab) {
     if (bar) {
       bar.style.display = (typeof isNetworked === 'function' && isNetworked()) ? 'block' : 'none';
     }
-    if (typeof registerRemoteScanListener === 'function') registerRemoteScanListener();
   } else if (actions[tab]) {
     const fn = window[actions[tab]];
     if (typeof fn === 'function') { try { fn(); } catch (e) { console.error(tab + ':', e); } }
