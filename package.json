@@ -4,7 +4,7 @@
   "private": true,
   "description": "Boutik v4 — نظام إدارة المحل مع الشبكة والترخيص",
   "scripts": {
-    "server": "node server/server.js",
+    "server": "node boutika-server/src/server.js",
     "electron": "cd electron && npm start",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
