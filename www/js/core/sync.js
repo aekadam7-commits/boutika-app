@@ -5,6 +5,8 @@
 const Sync = {
   ws: null, timer: null, running: false, reconnectTimer: null,
   onScanCallback: null,
+  remoteDevices: [],
+  _remoteScanWaiters: new Map(),
   state: 'offline', // syncing | synced | offline | conflict
   lastError: '',
   lastSyncAt: 0,
@@ -39,7 +41,7 @@ const Sync = {
     try {
       this.ws = new WebSocket(url);
       this.ws.onopen = () => {
-        try { this.ws.send(JSON.stringify({ type: 'hello-device', deviceId: ChangeLog._deviceId() })); } catch (_) {}
+        try { this.ws.send(JSON.stringify({ type: 'hello-device', deviceId: ChangeLog._deviceId(), label: this.deviceLabel() })); } catch (_) {}
         Net.online = true;
         if (typeof updateNetStatus === 'function') updateNetStatus();
         this._setState('syncing');
@@ -48,6 +50,33 @@ const Sync = {
       this.ws.onmessage = ev => {
         try {
           const msg = JSON.parse(ev.data);
+          if (msg.type === 'devices' && Array.isArray(msg.devices)) {
+            this.remoteDevices = msg.devices.filter(d => d && d.id && d.id !== ChangeLog._deviceId());
+            if (typeof window.updateRemoteScannerDevices === 'function') window.updateRemoteScannerDevices(this.remoteDevices);
+            return;
+          }
+          if (msg.type === 'scan_request') {
+            if (msg.targetDeviceId && msg.targetDeviceId !== ChangeLog._deviceId()) return;
+            if (typeof window.handleRemoteScanRequest === 'function') window.handleRemoteScanRequest(msg);
+            return;
+          }
+          if (msg.type === 'scan_result') {
+            const waiter = this._remoteScanWaiters.get(String(msg.requestId || ''));
+            if (waiter) {
+              this._remoteScanWaiters.delete(String(msg.requestId || ''));
+              waiter.resolve({ code: String(msg.code || ''), requestId: msg.requestId || null, context: msg.context || null });
+            }
+            return;
+          }
+          if (msg.type === 'scan_error') {
+            const waiter = this._remoteScanWaiters.get(String(msg.requestId || ''));
+            if (waiter) {
+              this._remoteScanWaiters.delete(String(msg.requestId || ''));
+              waiter.reject(new Error(msg.error || 'remote scan failed'));
+            }
+            return;
+          }
+
           if (msg.type === 'hello') {
             // لا نرفع seq عند hello: يجب أولًا سحب كل ما فاتنا من آخر seq محلي.
             this.afterConnect();
@@ -182,19 +211,70 @@ const Sync = {
     } catch (_) { return 0; }
   },
 
-  async sendScan(barcode, targetDeviceId, requestId) {
-    const code = String(barcode || '').trim();
-    if (!code) return false;
-    const from = (typeof ChangeLog !== 'undefined' && ChangeLog._deviceId) ? ChangeLog._deviceId() : '';
-    const payload = { type: 'scan', barcode: code, from, targetDeviceId: targetDeviceId || null, requestId: requestId || null };
-    if (this.ws && this.ws.readyState === 1) {
-      try { this.ws.send(JSON.stringify(payload)); return true; } catch (_) {}
-    }
+  deviceLabel() {
+    try {
+      const saved = localStorage.getItem('boutika_device_name');
+      if (saved) return saved;
+    } catch (_) {}
+    const id = (typeof ChangeLog !== 'undefined' && ChangeLog._deviceId) ? ChangeLog._deviceId() : 'device';
+    return 'جهاز • ' + String(id).slice(-5);
+  },
+
+  async refreshRemoteDevices() {
     const url = Net.baseUrl() || 'http://localhost:8787';
     try {
-      const r = await fetch(url + '/api/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r = await fetch(url + '/api/devices');
+      if (r.ok) {
+        const data = await r.json();
+        this.remoteDevices = (data.devices || []).filter(d => d.id !== ChangeLog._deviceId());
+        return this.remoteDevices;
+      }
+    } catch (_) {}
+    if (this.ws && this.ws.readyState === 1) {
+      try { this.ws.send(JSON.stringify({ type: 'list-devices' })); } catch (_) {}
+    }
+    return this.remoteDevices;
+  },
+
+  async requestRemoteScan({ targetDeviceId, kind = 'barcode', context = null } = {}) {
+    const requestId = (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random();
+    const requesterDeviceId = ChangeLog._deviceId();
+    if (!targetDeviceId) throw new Error('scanner device required');
+    return new Promise((resolve, reject) => {
+      const key = String(requestId);
+      const timer = setTimeout(() => {
+        const waiter = this._remoteScanWaiters.get(key);
+        if (waiter) { this._remoteScanWaiters.delete(key); reject(new Error('remote scan timeout')); }
+      }, 60000);
+      this._remoteScanWaiters.set(key, { resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); } });
+      const payload = { type: 'scan_request', requestId, requesterDeviceId, targetDeviceId, kind, context };
+      try {
+        if (this.ws && this.ws.readyState === 1) {
+          this.ws.send(JSON.stringify(payload));
+          return;
+        }
+      } catch (_) {}
+      const url = Net.baseUrl() || 'http://localhost:8787';
+      fetch(url + '/api/scan/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(r => { if (!r.ok) throw new Error('scanner device offline'); })
+        .catch(err => { this._remoteScanWaiters.delete(String(requestId)); reject(err); });
+    });
+  },
+
+  async completeRemoteScan({ requestId, requesterDeviceId, code, context = null } = {}) {
+    const payload = { type: 'scan_result', requestId, requesterDeviceId, code: String(code || ''), context };
+    try {
+      if (this.ws && this.ws.readyState === 1) { this.ws.send(JSON.stringify(payload)); return true; }
+    } catch (_) {}
+    const url = Net.baseUrl() || 'http://localhost:8787';
+    try {
+      const r = await fetch(url + '/api/scan/result', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       return r.ok;
     } catch (_) { return false; }
+  },
+
+  async sendScan(barcode, targetDeviceId, requestId) {
+    return this.completeRemoteScan({ requestId, requesterDeviceId: targetDeviceId, code: barcode });
   },
 
   onScan(callback) { this.onScanCallback = callback; }
