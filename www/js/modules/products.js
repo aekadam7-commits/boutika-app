@@ -171,7 +171,8 @@ function openProductModal(id) {
       <input id="pBarcode" dir="ltr" style="flex:1" value="${escapeHtml(p.barcode || '')}"
              oninput="onProductBarcodeChange(this.value)"
              onchange="onProductBarcodeChange(this.value)">
-      <button type="button" class="btn btn-primary" onclick="openScanner('product-barcode')" title="مسح">📷</button>
+      <button type="button" class="btn btn-primary" onclick="openScanner('product-barcode')" title="مسح بالكاميرا">📷</button>
+      <button type="button" class="btn btn-info" onclick="startRemoteScanner('barcode', {target:'product-barcode'})" title="المسح بجهاز آخر">📱</button>
     </div>
     <div id="pBarcodeInfo"></div>
     <label class="lbl">الاسم</label><input id="pName" value="${escapeHtml(p.name || '')}">

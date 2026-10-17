@@ -7,6 +7,7 @@ let scannerTarget = null;
 let scannerLastCode = '';
 let scannerLastTime = 0;
 let remoteScannerMode = false;
+let remoteScanRequest = null;
 
 function getScannerConfig() {
   try {
@@ -22,7 +23,8 @@ function getScannerConfig() {
 
 function openScanner(target) {
   scannerTarget = target;
-  remoteScannerMode = (target === 'remote');
+  remoteScannerMode = (target === 'remote' || (target && target.kind === 'remote-request'));
+  if (target && target.kind === 'remote-request') remoteScanRequest = target;
   scannerLastCode = '';
   scannerLastTime = 0;
 
@@ -43,7 +45,9 @@ function openScanner(target) {
   container.innerHTML = '<div id="qrReader" style="width:100%;height:100%"></div>';
 
   const st = document.getElementById('scannerStatus');
-  if (st) st.textContent = '📷 جارٍ تشغيل الكاميرا...';
+  const title = document.getElementById('scannerTitle');
+  if (title) title.textContent = (target && target.kind === 'remote-request') ? '📡 مسح مطلوب من جهاز آخر' : '📷 مسح الباركود';
+  if (st) st.textContent = (target && target.kind === 'remote-request') ? '📷 جارٍ تشغيل الكاميرا لإتمام الطلب...' : '📷 جارٍ تشغيل الكاميرا...';
 
   try {
     scannerInstance = new Html5Qrcode('qrReader', { verbose: false });
@@ -66,7 +70,7 @@ function openScanner(target) {
       },
       () => {}
     ).then(() => {
-      if (st) st.textContent = remoteScannerMode ? '📡 وضع المسح عن بُعد — وجّه الكاميرا...' : '✅ وجّه الكاميرا نحو الباركود...';
+      if (st) st.textContent = (target && target.kind === 'remote-request') ? '📡 امسح الرمز الآن — ستعود النتيجة للجهاز الطالب تلقائيًا' : (remoteScannerMode ? '📡 وضع المسح عن بُعد — وجّه الكاميرا...' : '✅ وجّه الكاميرا نحو الباركود...');
       vibrate([30, 60, 30]);
 
       // ← إصلاح: تأكد من عرض الفيديو
@@ -126,6 +130,7 @@ function onScanSuccess(text, result) {
 }
 
 function closeScanner() {
+  if (remoteScanRequest) remoteScanRequest = null;
   const overlay = document.getElementById('scannerOverlay');
   if (overlay) overlay.classList.add('hidden');
   if (scannerInstance) {
@@ -138,13 +143,19 @@ function closeScanner() {
 }
 
 function handleScan(text) {
+  if (remoteScanRequest && remoteScanRequest.kind === 'remote-request') {
+    const req = remoteScanRequest;
+    remoteScanRequest = null;
+    if (typeof Sync !== 'undefined' && Sync.completeRemoteScan) {
+      Sync.completeRemoteScan({ requestId: req.requestId, requesterDeviceId: req.requesterDeviceId, code: text, context: req.context })
+        .then(ok => { if (!ok) toast('⚠️ تعذّر إرسال نتيجة المسح', true); });
+    }
+    closeScanner();
+    return;
+  }
   if (remoteScannerMode) {
-    const targetDeviceId = (typeof Net !== 'undefined' && Net.host && Net.host.id) ? Net.host.id : null;
-    const requestId = (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random();
-    Promise.resolve((typeof Sync !== 'undefined' && Sync.sendScan) ? Sync.sendScan(text, targetDeviceId, requestId) : false).then(sent => {
-      if (sent) toast('📡 تم إرسال: ' + text);
-      else { toast('⚠️ لا يوجد اتصال بالجهاز الآخر', true); playErrorBeep(); }
-    });
+    toast('ℹ️ هذا الوضع القديم لم يعد مطلوبًا — استخدم «المسح بجهاز آخر»', true);
+    closeScanner();
     return;
   }
 
@@ -187,15 +198,49 @@ function isNetworked() {
   return (m.current === 'client' && !!Net.host) || (m.current === 'host' && !m.standalone);
 }
 
-function startRemoteScanner() {
-  if (!isNetworked()) {
-    toast('⚠️ هذا الجهاز غير مرتبط بجهاز آخر', true);
-    return;
-  }
-  remoteScannerMode = true;
-  toast('📡 المسح عن بُعد: ما تمسحه سيعود للجهاز المرتبط');
-  openScanner('remote');
+async function chooseRemoteScannerDevice() {
+  const devices = (typeof Sync !== 'undefined' && Sync.refreshRemoteDevices) ? await Sync.refreshRemoteDevices() : [];
+  const list = (devices || []).filter(d => d && d.id);
+  if (!list.length) { toast('⚠️ لا يوجد جهاز آخر متصل وقادر على المسح', true); return null; }
+  if (list.length === 1) return list[0].id;
+  return new Promise(resolve => {
+    let box = document.getElementById('remoteScannerPicker');
+    if (box) box.remove();
+    box = document.createElement('div');
+    box.id = 'remoteScannerPicker';
+    box.style.cssText = 'position:fixed;inset:0;background:#0008;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px';
+    const items = list.map(d => `<button data-id="${escapeHtml(String(d.id))}" style="width:100%;padding:14px;margin:6px 0;border:0;border-radius:10px;background:#f5f5f5;text-align:right;font-size:15px">📱 ${escapeHtml(d.label || ('جهاز • ' + String(d.id).slice(-5)))}</button>`).join('');
+    box.innerHTML = `<div style="background:#fff;color:#222;border-radius:16px;padding:18px;width:min(420px,100%);direction:rtl"><h3 style="margin:0 0 12px">اختر جهاز المسح</h3><div>${items}</div><button id="remoteScannerCancel" style="width:100%;padding:12px;margin-top:8px;border:0;border-radius:10px">إلغاء</button></div>`;
+    document.body.appendChild(box);
+    box.querySelectorAll('[data-id]').forEach(b => b.onclick = () => { const id=b.getAttribute('data-id'); box.remove(); resolve(id); });
+    box.querySelector('#remoteScannerCancel').onclick = () => { box.remove(); resolve(null); };
+  });
 }
+
+async function startRemoteScanner(kind = 'barcode', context = null) {
+  if (!isNetworked()) { toast('⚠️ هذا الجهاز غير مرتبط بشبكة Boutika', true); return false; }
+  const targetDeviceId = await chooseRemoteScannerDevice();
+  if (!targetDeviceId) return false;
+  try {
+    toast('📡 جارٍ طلب المسح من الجهاز المختار...');
+    const result = await Sync.requestRemoteScan({ targetDeviceId, kind, context });
+    handleIncomingScan(result.code, result.requestId, result.context || context);
+    return true;
+  } catch (e) {
+    toast('⚠️ تعذّر إتمام المسح على الجهاز الآخر', true);
+    return false;
+  }
+}
+
+async function handleRemoteScanRequest(msg) {
+  if (!msg || !msg.requestId || !msg.requesterDeviceId) return;
+  remoteScanRequest = { kind: 'remote-request', requestId: msg.requestId, requesterDeviceId: msg.requesterDeviceId, context: msg.context || null };
+  try { closeScanner(); } catch (_) {}
+  toast('📡 طلب مسح من جهاز آخر');
+  setTimeout(() => openScanner(remoteScanRequest), 80);
+}
+window.handleRemoteScanRequest = handleRemoteScanRequest;
+window.startRemoteScanner = startRemoteScanner;
 
 // واجهة عامة للوحدات المستقبلية: أي شاشة تستطيع تسجيل معالج للباركود عن بُعد.
 let remoteScanHandler = null;
@@ -203,10 +248,20 @@ function registerRemoteScanHandler(handler) { remoteScanHandler = typeof handler
 function clearRemoteScanHandler() { remoteScanHandler = null; }
 
 // استقبال باركود جاء من جهاز آخر، ويُعاد إلى العملية التي كانت تنتظر المسح.
-function handleIncomingScan(code, requestId) {
+function handleIncomingScan(code, requestId, context) {
   code = String(code || '').trim();
   if (!code) return;
   try {
+    if (context && context.target === 'license' && typeof activateWithCode === 'function') {
+      activateWithCode(code);
+      return;
+    }
+    if (context && context.target === 'product-barcode') {
+      const f = document.getElementById('pBarcode');
+      if (f) { f.value = code; if (typeof onProductBarcodeChange === 'function') onProductBarcodeChange(code); }
+      if (typeof playSuccessBeep === 'function') playSuccessBeep();
+      return;
+    }
     if (remoteScanHandler) {
       const handled = remoteScanHandler(code, requestId);
       if (handled !== false) return;
