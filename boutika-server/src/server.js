@@ -58,14 +58,80 @@ function broadcastDeviceList() {
   const devices = Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) }));
   broadcast({ type: 'devices', devices });
 }
-function sendScan(obj, except) {
-  const payload = JSON.stringify(obj);
-  if (obj.targetDeviceId) {
-    const target = scanClients.get(String(obj.targetDeviceId));
-    if (target && target.readyState === 1 && target !== except) { target.send(payload); return true; }
-    return false;
+/* ---------- المسح عبر الشبكة ----------
+   scan_request  : جهاز يطلب من آخر أن يمسح (mode: once | stream)
+   scan_result   : الجهاز الماسح يرسل الرمز (stream/push تبقى الجلسة مفتوحة)
+   scan_ack      : الجهاز المستقبل يؤكد ما فعله بالرمز (اسم المنتج / سبب الفشل)
+   scan_cancel   : أيّ طرف ينهي الجلسة
+   الجلسات تُتتبّع هنا لإبلاغ الطرف الآخر فورًا إذا انقطع جهاز. */
+const scanSessions = new Map();   // requestId -> { a: requesterId, b: scannerId, at }
+const SESSION_TTL = 12 * 3600 * 1000;
+
+function deviceWs(id) {
+  const w = scanClients.get(String(id || ''));
+  return (w && w.readyState === 1) ? w : null;
+}
+function labelOf(id) {
+  const m = deviceMeta.get(String(id || ''));
+  return (m && m.label) || ('جهاز • ' + String(id || '').slice(-5));
+}
+function sendTo(ws, obj) { try { ws.send(JSON.stringify(obj)); return true; } catch (_) { return false; } }
+
+function relayScan(d, fromId) {
+  const requestId = d.requestId ? String(d.requestId).slice(0, 80) : null;
+  fromId = String(fromId || d.from || '');
+  switch (d.type) {
+    case 'scan_request': {
+      const targetId = String(d.targetDeviceId || '');
+      const target = deviceWs(targetId);
+      if (!target) return { ok: false, error: 'target device offline' };
+      const requester = String(d.requesterDeviceId || fromId);
+      if (requestId) scanSessions.set(requestId, { a: requester, b: targetId, at: Date.now() });
+      sendTo(target, { type: 'scan_request', requestId, requesterDeviceId: requester, requesterLabel: labelOf(requester), from: requester, targetDeviceId: targetId, kind: d.kind === 'qr' ? 'qr' : 'barcode', mode: d.mode === 'stream' ? 'stream' : 'once', context: d.context || null });
+      return { ok: true };
+    }
+    case 'scan_result': {
+      const dest = deviceWs(d.requesterDeviceId);
+      if (!dest) return { ok: false, error: 'requester device offline' };
+      const stream = !!d.stream, push = !!d.push;
+      if (requestId) {
+        if (stream || push) { if (!scanSessions.has(requestId)) scanSessions.set(requestId, { a: String(d.requesterDeviceId), b: fromId, at: Date.now() }); }
+        else scanSessions.delete(requestId);
+      }
+      sendTo(dest, { type: 'scan_result', requestId, code: String(d.code || '').slice(0, 256), context: d.context || null, stream, push, from: fromId, fromLabel: labelOf(fromId) });
+      return { ok: true };
+    }
+    case 'scan_ack': {
+      const dest = deviceWs(d.to);
+      if (!dest) return { ok: false, error: 'target device offline' };
+      sendTo(dest, { type: 'scan_ack', requestId, ok: !!d.ok, text: String(d.text || '').slice(0, 200), name: String(d.name || '').slice(0, 120), from: fromId });
+      return { ok: true };
+    }
+    case 'scan_cancel': {
+      if (requestId) scanSessions.delete(requestId);
+      const dest = deviceWs(d.to);
+      if (dest) sendTo(dest, { type: 'scan_cancel', requestId, reason: String(d.reason || 'closed').slice(0, 40), from: fromId });
+      return { ok: true };           // الطرف الآخر غائب: لا خطأ
+    }
   }
-  broadcast(obj, except);
+  return { ok: false, error: 'unknown scan message' };
+}
+
+// انقطع جهاز: أخبر شريك كل جلسة مفتوحة له
+function endSessionsOf(deviceId) {
+  scanSessions.forEach((s, rid) => {
+    if (s.a !== deviceId && s.b !== deviceId) return;
+    const other = deviceWs(s.a === deviceId ? s.b : s.a);
+    if (other) sendTo(other, { type: 'scan_cancel', requestId: rid, reason: 'device-disconnected', from: deviceId });
+    scanSessions.delete(rid);
+  });
+}
+
+// الرسالة القديمة scan (بث): تتطلب الآن جهازًا هدفًا محددًا حتى لا تصل لكل الأجهزة
+function sendScan(obj, except) {
+  const target = deviceWs(obj.targetDeviceId);
+  if (!target || target === except) return false;
+  sendTo(target, obj);
   return true;
 }
 function acceptEntries(list, except) {
@@ -118,24 +184,28 @@ app.get('/api/state', guard, (req, res) => {
 app.get('/api/devices', guard, (req, res) => {
   res.json({ ok: true, devices: Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) })) });
 });
-app.post('/api/scan/request', guard, (req, res) => {
-  const targetDeviceId = String(req.body && req.body.targetDeviceId || '');
-  const target = scanClients.get(targetDeviceId);
-  if (!target || target.readyState !== 1) return res.status(409).json({ ok: false, error: 'target device offline' });
-  target.send(JSON.stringify({ type: 'scan_request', requestId: req.body.requestId || null, requesterDeviceId: req.body.requesterDeviceId || null, targetDeviceId, kind: req.body.kind || 'barcode', context: req.body.context || null }));
+function httpScan(type, fromKey) {
+  return (req, res) => {
+    const body = req.body || {};
+    const r = relayScan(Object.assign({}, body, { type }), body[fromKey] || body.from);
+    if (!r.ok) return res.status(409).json({ ok: false, error: r.error });
+    res.json({ ok: true });
+  };
+}
+app.post('/api/scan/request', guard, httpScan('scan_request', 'requesterDeviceId'));
+app.post('/api/scan/result', guard, httpScan('scan_result', 'from'));
+app.post('/api/scan/relay', guard, (req, res) => {
+  const body = req.body || {};
+  if (body.type !== 'scan_ack' && body.type !== 'scan_cancel') return res.status(400).json({ ok: false, error: 'bad type' });
+  const r = relayScan(body, body.from);
+  if (!r.ok) return res.status(409).json({ ok: false, error: r.error });
   res.json({ ok: true });
 });
-app.post('/api/scan/result', guard, (req, res) => {
-  const targetDeviceId = String(req.body && req.body.requesterDeviceId || '');
-  const target = scanClients.get(targetDeviceId);
-  if (!target || target.readyState !== 1) return res.status(409).json({ ok: false, error: 'requester device offline' });
-  target.send(JSON.stringify({ type: 'scan_result', requestId: req.body.requestId || null, code: String(req.body.code || ''), context: req.body.context || null }));
-  res.json({ ok: true });
-});
-app.post('/api/scan', guard, (req, res) => {
+app.post('/api/scan', guard, (req, res) => {          // قديم: يتطلب جهازًا هدفًا
   const barcode = req.body && req.body.barcode;
   if (!barcode) return res.status(400).json({ ok: false });
-  const delivered = sendScan({ type: 'scan', barcode: String(barcode), from: req.body.from, targetDeviceId: req.body.targetDeviceId || null, requestId: req.body.requestId || null });
+  if (!req.body.targetDeviceId) return res.status(400).json({ ok: false, error: 'targetDeviceId required' });
+  const delivered = sendScan({ type: 'scan', barcode: String(barcode), from: req.body.from, targetDeviceId: String(req.body.targetDeviceId), requestId: req.body.requestId || null });
   if (!delivered) return res.status(409).json({ ok: false, error: 'target device offline' });
   res.json({ ok: true });
 });
@@ -182,18 +252,11 @@ wss.on('connection', ws => {
   ws.on('message', msg => {
     try {
       const d = JSON.parse(msg);
-      if (d.type === 'hello-device' && d.deviceId) { connectedDeviceId = String(d.deviceId); scanClients.set(connectedDeviceId, ws); deviceMeta.set(connectedDeviceId, { label: d.label || '' }); broadcastDeviceList(); return; }
+      if (d.type === 'hello-device' && d.deviceId) { connectedDeviceId = String(d.deviceId); scanClients.set(connectedDeviceId, ws); deviceMeta.set(connectedDeviceId, { label: String(d.label || '').slice(0, 60) }); broadcastDeviceList(); return; }
       if (d.type === 'list-devices') { try { ws.send(JSON.stringify({ type: 'devices', devices: Array.from(deviceMeta.entries()).map(([id, m]) => ({ id, label: m.label || ('جهاز • ' + id.slice(-5)) })) })); } catch (_) {} return; }
-      if (d.type === 'scan_request') {
-        const target = scanClients.get(String(d.targetDeviceId || ''));
-        if (target && target.readyState === 1) target.send(JSON.stringify({ type: 'scan_request', requestId: d.requestId || null, requesterDeviceId: d.requesterDeviceId || connectedDeviceId, targetDeviceId: d.targetDeviceId || null, kind: d.kind || 'barcode', context: d.context || null }));
-        else try { ws.send(JSON.stringify({ type: 'scan_error', requestId: d.requestId || null, error: 'target device offline' })); } catch (_) {}
-        return;
-      }
-      if (d.type === 'scan_result') {
-        const target = scanClients.get(String(d.requesterDeviceId || ''));
-        if (target && target.readyState === 1) target.send(JSON.stringify({ type: 'scan_result', requestId: d.requestId || null, code: String(d.code || ''), context: d.context || null }));
-        else try { ws.send(JSON.stringify({ type: 'scan_error', requestId: d.requestId || null, error: 'requester device offline' })); } catch (_) {}
+      if (d.type === 'scan_request' || d.type === 'scan_result' || d.type === 'scan_ack' || d.type === 'scan_cancel') {
+        const r = relayScan(d, connectedDeviceId);
+        if (!r.ok) sendTo(ws, { type: 'scan_error', requestId: d.requestId || null, error: r.error });
         return;
       }
       if (d.type === 'push' && Array.isArray(d.entries)) {
@@ -206,11 +269,20 @@ wss.on('connection', ws => {
       }
     } catch (e) { console.warn('WS msg error:', e.message); }
   });
-  ws.on('close', () => { if (connectedDeviceId) { scanClients.delete(connectedDeviceId); deviceMeta.delete(connectedDeviceId); broadcastDeviceList(); } });
+  ws.on('close', () => {
+    // لا نحذف إن كان الجهاز أعاد الاتصال بمقبس جديد قبل إغلاق القديم
+    if (connectedDeviceId && scanClients.get(connectedDeviceId) === ws) {
+      scanClients.delete(connectedDeviceId); deviceMeta.delete(connectedDeviceId);
+      endSessionsOf(connectedDeviceId);
+      broadcastDeviceList();
+    }
+  });
 });
 // فحص الاتصال كل 30 ثانية (مهم لشبكات الهاتف)
 setInterval(() => {
   wss.clients.forEach(ws => { if (!ws.isAlive) return ws.terminate(); ws.isAlive = false; ws.ping(); });
+  const now = Date.now();
+  scanSessions.forEach((s, rid) => { if (now - s.at > SESSION_TTL) scanSessions.delete(rid); });
 }, 30000);
 
 /* ---------- نسخ احتياطي تلقائي يوميًا + إيقاف نظيف ---------- */
