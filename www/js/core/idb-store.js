@@ -31,6 +31,13 @@
 
   const managed = k => typeof k === 'string' && k.startsWith(PREFIX) && KEEP_REAL.indexOf(k) === -1;
 
+  // خطاف الكتابة: يعرف سجل المزامنة بكل تغيير في أي جدول مهما كانت الوحدة التي كتبته
+  window.BoutikaHook = window.BoutikaHook || { onWrite: null };
+  function notify(k, oldV, newV) {
+    const h = window.BoutikaHook;
+    if (h && typeof h.onWrite === 'function') { try { h.onWrite(k, oldV, newV); } catch (e) { console.warn('BoutikaHook:', e); } }
+  }
+
   /* ---------- IndexedDB ---------- */
   function openDB() {
     return new Promise((resolve, reject) => {
@@ -103,8 +110,8 @@
 
   const methods = {
     getItem(k) { k = String(k); return managed(k) ? (mem.has(k) ? mem.get(k) : null) : real.getItem(k); },
-    setItem(k, v) { k = String(k); v = String(v); if (managed(k)) { mem.set(k, v); schedule(k); } else real.setItem(k, v); },
-    removeItem(k) { k = String(k); if (managed(k)) { if (mem.delete(k)) schedule(k); } else real.removeItem(k); },
+    setItem(k, v) { k = String(k); v = String(v); if (managed(k)) { const o = mem.get(k); mem.set(k, v); schedule(k); notify(k, o, v); } else real.setItem(k, v); },
+    removeItem(k) { k = String(k); if (managed(k)) { if (mem.has(k)) { const o = mem.get(k); mem.delete(k); schedule(k); notify(k, o, undefined); } } else real.removeItem(k); },
     key(i) { const a = allKeys(); return i >= 0 && i < a.length ? a[i] : null; },
     clear() { Array.from(mem.keys()).forEach(k => { mem.delete(k); schedule(k); }); real.clear(); }
   };
@@ -188,5 +195,20 @@
 
   init().then(() => { window.BoutikaStore.engine = 'indexeddb'; }, err => {
     console.warn('Boutika: IndexedDB غير متاح، نستمر بـ localStorage', err);
+    try {
+      const so = Storage.prototype.setItem, ro = Storage.prototype.removeItem;
+      Storage.prototype.setItem = function (k, v) {
+        const key = String(k), isMine = this === real && managed(key);
+        const o = isMine ? this.getItem(key) : null;
+        so.call(this, k, v);
+        if (isMine) notify(key, o === null ? undefined : o, String(v));
+      };
+      Storage.prototype.removeItem = function (k) {
+        const key = String(k), isMine = this === real && managed(key);
+        const o = isMine ? this.getItem(key) : null;
+        ro.call(this, k);
+        if (isMine && o !== null) notify(key, o, undefined);
+      };
+    } catch (e) {}
   }).then(loadApp);
 })();

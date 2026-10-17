@@ -13,6 +13,7 @@ const Sync = {
   start() {
     if (this.running) return;
     this.running = true;
+    try { if (typeof ChangeLog !== 'undefined' && ChangeLog.repairAll) ChangeLog.repairAll(); } catch (e) {}
     const mode = DB.mode();
     if (!mode.current) return;
 
@@ -41,6 +42,7 @@ const Sync = {
         Net.online = true;
         if (typeof updateNetStatus === 'function') updateNetStatus();
         console.log('🔌 WebSocket متصل:', url);
+        this.afterConnect();
       };
 
       this.ws.onmessage = (ev) => {
@@ -48,17 +50,17 @@ const Sync = {
           const msg = JSON.parse(ev.data);
 
           if (msg.type === 'change' && msg.entry) {
-            this.onRemoteChange(msg.entry);
+            this.applyMany([msg.entry]);
           }
 
           if (msg.type === 'batch' && Array.isArray(msg.entries)) {
-            msg.entries.forEach(e => this.onRemoteChange(e));
+            this.applyMany(msg.entries);
           }
 
           if (msg.type === 'scan' && msg.barcode) {
-            if (typeof this.onScanCallback === 'function') {
-              this.onScanCallback(msg.barcode);
-            }
+            if (msg.from && msg.from === ChangeLog._deviceId()) return;       // لا نستقبل مسحي أنا
+            if (typeof window.handleIncomingScan === 'function') window.handleIncomingScan(String(msg.barcode));
+            else if (typeof this.onScanCallback === 'function') this.onScanCallback(msg.barcode);
           }
         } catch (e) { console.warn('WS msg error:', e); }
       };
@@ -78,11 +80,41 @@ const Sync = {
     }
   },
 
-  onRemoteChange(entry) {
-    try {
-      ChangeLog.applyRemote(entry);
-      if (typeof refreshAll === 'function') refreshAll();
-    } catch (e) { console.warn('onRemoteChange:', e); }
+  _getSeq() { try { return +(localStorage.getItem('boutika_sync_seq') || 0); } catch (e) { return 0; } },
+  _setSeq(n) { try { if (n > this._getSeq()) localStorage.setItem('boutika_sync_seq', String(n)); } catch (e) {} },
+
+  applyMany(entries) {
+    let n = 0, maxSeq = 0;
+    (entries || []).forEach(e => {
+      try { if (ChangeLog.applyRemote(e)) n++; } catch (err) { console.warn('applyRemote:', err); }
+      if (e && e.seq > maxSeq) maxSeq = e.seq;
+    });
+    if (maxSeq) this._setSeq(maxSeq);
+    if (n && typeof refreshAll === 'function') { try { refreshAll(); } catch (e) {} }
+    return n;
+  },
+
+  onRemoteChange(entry) { this.applyMany([entry]); },
+
+  // عند كل اتصال: أرسل المعلّق، استلم ما فاتني، والمضيف يرسل بياناته القديمة مرة واحدة
+  async afterConnect() {
+    try { await this.flush(); } catch (e) {}
+    try { await this.pull(); } catch (e) {}
+    try { if (DB.mode().current === 'host') await this.seedOnce(); } catch (e) {}
+  },
+
+  async seedOnce() {
+    if (localStorage.getItem('boutika_seed_v3')) return;
+    const url = Net.baseUrl() || 'http://localhost:8787';
+    const entries = ChangeLog.seedEntries();
+    for (let i = 0; i < entries.length; i += 500) {
+      const r = await fetch(url + '/api/sync/push', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: entries.slice(i, i + 500) })
+      });
+      if (!r.ok) return;
+    }
+    localStorage.setItem('boutika_seed_v3', '1');
   },
 
   pushImmediate(entry) {
@@ -95,14 +127,19 @@ const Sync = {
     return false;
   },
 
-  sendScan(barcode) {
+  async sendScan(barcode) {
+    const from = ChangeLog._deviceId();
     if (this.ws && this.ws.readyState === 1) {
-      try {
-        this.ws.send(JSON.stringify({ type: 'scan', barcode }));
-        return true;
-      } catch (e) { return false; }
+      try { this.ws.send(JSON.stringify({ type: 'scan', barcode, from })); return true; } catch (e) {}
     }
-    return false;
+    try {                                                   // بديل عبر HTTP إن لم يكن WebSocket متصلًا
+      const url = Net.baseUrl() || 'http://localhost:8787';
+      const r = await fetch(url + '/api/scan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode, from })
+      });
+      return r.ok;
+    } catch (e) { return false; }
   },
 
   onScan(callback) {
@@ -129,11 +166,12 @@ const Sync = {
   async pull() {
     const url = Net.baseUrl() || 'http://localhost:8787';
     try {
-      const r = await fetch(url + '/api/sync/pull?since=' + (this.lastSeq || 0));
-      if (!r.ok) return;
+      const r = await fetch(url + '/api/sync/pull?since=' + this._getSeq());
+      if (!r.ok) return 0;
       const data = await r.json();
-      (data.entries || []).forEach(e => ChangeLog.applyRemote(e));
-      this.lastSeq = data.seq || this.lastSeq;
-    } catch (e) {}
+      const n = this.applyMany(data.entries || []);
+      if (data.seq) this._setSeq(data.seq);
+      return n;
+    } catch (e) { return 0; }
   }
 };

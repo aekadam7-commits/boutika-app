@@ -10,12 +10,7 @@ const DB = {
     catch { return []; }
   },
   set(k, v) {
-    localStorage.setItem(this.PREFIX + k, JSON.stringify(v));
-    if (typeof ChangeLog !== 'undefined' && ChangeLog && ChangeLog.record) {
-      if (['changelog', 'auditLog', 'settings', 'counters', 'mode', 'i18n'].indexOf(k) === -1) {
-        try { ChangeLog.record(k, v); } catch (e) { console.warn('ChangeLog error:', e); }
-      }
-    }
+    localStorage.setItem(this.PREFIX + k, JSON.stringify(v));   // التسجيل للمزامنة يتم تلقائيًا عبر خطاف التخزين
   },
   getObj(k) {
     try { return JSON.parse(localStorage.getItem(this.PREFIX + k) || '{}'); }
@@ -77,7 +72,7 @@ function initDB() {
       password: '1234',
       role: 'admin',
       created_at: __safeNow(),
-      _updated_at: Date.now()
+      _updated_at: 0        // مستخدم افتراضي أولي: لا يُرسَل ويستبدله مستخدمو المضيف
     };
     localStorage.setItem(DB.PREFIX + 'users', JSON.stringify([defaultUser]));
 
@@ -106,7 +101,6 @@ function audit(action, details = '') {
       user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.username : 'system',
       created_at: __safeNow()
     });
-    if (log.length > 2000) log.splice(0, log.length - 2000);
     localStorage.setItem(DB.PREFIX + 'auditLog', JSON.stringify(log));
   } catch (e) {
     console.error('audit error:', e);
