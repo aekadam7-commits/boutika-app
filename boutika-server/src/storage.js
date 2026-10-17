@@ -170,10 +170,67 @@ function backup() {
   return { name, file };
 }
 
+// استعادة آمنة من نسخة الخادم: لا تستبدل هوية الجهاز أو رمز الوصول.
+function restoreBackup(name) {
+  const safeName = path.basename(String(name || ''));
+  if (!/^backup-[A-Za-z0-9T._-]+\.json$/.test(safeName)) throw new Error('invalid backup name');
+  const file = path.join(BACKUP_DIR, safeName);
+  if (!fs.existsSync(file)) throw new Error('backup not found');
+  const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!parsed || !Array.isArray(parsed.entries)) throw new Error('invalid backup format');
+
+  // نسخة أمان للحالة الحالية قبل أي تغيير.
+  const safety = backup();
+  const current = fullState();
+  const saved = parsed.entries;
+  const now = Date.now();
+  const keyOf = e => String(e.table) + ':' + String(e.data && e.data.id != null ? e.data.id : '__obj__');
+  const savedKeys = new Set(saved.map(keyOf));
+  const currentKeys = new Set(current.map(keyOf));
+  const restored = [];
+
+  // إعادة سجلات النسخة كأحداث جديدة كي تصل إلى الأجهزة المتصلة بالمزامنة.
+  for (const original of saved) {
+    if (!original || !original.table || !original.data) continue;
+    const e = JSON.parse(JSON.stringify(original));
+    e.id = crypto.randomBytes(16).toString('hex');
+    e.deviceId = meta.deviceId;
+    e.ts = now;
+    e.baseSeq = meta.seq;
+    e.synced = true;
+    if (Array.isArray(e.data)) {
+      e.data = e.data.map(row => row && typeof row === 'object' ? { ...row, _updated_at: now } : row);
+    } else if (e.data && typeof e.data === 'object') {
+      e.data._updated_at = now;
+      if (e.data._obj && typeof e.data._obj === 'object') e.data._obj = { ...e.data._obj };
+    }
+    restored.push(append(e));
+  }
+
+  // حذف منطقي للسجلات التي أُنشئت بعد النسخة القديمة.
+  for (const e of current) {
+    if (!e || !e.table || !e.data) continue;
+    const key = keyOf(e);
+    if (savedKeys.has(key) || !currentKeys.has(key)) continue;
+    if (e.data.id === '__obj__' || (e.data._obj && typeof e.data._obj === 'object')) {
+      restored.push(append({ id: crypto.randomBytes(16).toString('hex'), table: e.table,
+        data: { id: '__obj__', _obj: {}, _updated_at: now }, ts: now,
+        deviceId: meta.deviceId, baseSeq: meta.seq, synced: true }));
+    } else if (e.data.id != null && !e.data._deleted) {
+      restored.push(append({ id: crypto.randomBytes(16).toString('hex'), table: e.table,
+        data: { id: e.data.id, _deleted: true, _updated_at: now }, ts: now,
+        deviceId: meta.deviceId, baseSeq: meta.seq, synced: true }));
+    }
+  }
+  saveMeta();
+  snapshot();
+  return { restored: restored.length, safetyBackup: safety.name, seq: meta.seq };
+}
+
 function flush() { saveMeta(); }
 
 module.exports = {
-  load, append, since, getLatest, hasEntry, fullState, snapshot, compact, stats, backup, flush,
+  load, append, since, getLatest, hasEntry, fullState, snapshot, compact, stats, backup, restoreBackup, flush,
   getMeta: () => meta, saveMeta,
   paths: { DATA_DIR, UPLOAD_DIR, BACKUP_DIR }
 };

@@ -231,6 +231,17 @@ app.get('/api/backups/:name', adminGuard, (req, res) => {
   if (!fs.existsSync(f)) return res.status(404).json({ ok: false });
   res.download(f);
 });
+app.post('/api/restore', adminGuard, (req, res) => {
+  try {
+    const result = storage.restoreBackup(String((req.body && req.body.name) || ''));
+    const entries = storage.since(Math.max(0, result.seq - result.restored - 5));
+    if (entries.length) broadcast({ type: 'batch', entries });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    const status = /not found/i.test(e.message) ? 404 : 400;
+    res.status(status).json({ ok: false, error: e.message || 'restore failed' });
+  }
+});
 app.post('/api/compact', adminGuard, (req, res) => res.json({ ok: true, records: storage.compact() }));
 
 /* ---------- WebSocket ---------- */
