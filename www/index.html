@@ -61,6 +61,7 @@
       <div class="lic-step-title"><span>2</span> أدخل رمز التفعيل</div>
       <div class="lic-row">
         <button class="btn btn-primary" onclick="startLicenseScan()">📷 مسح QR</button>
+        <button class="btn btn-info" onclick="startRemoteLicenseScan()">📱 المسح بجهاز آخر</button>
         <button class="btn btn-primary" onclick="pickLicenseImage()">🖼️ صورة QR</button>
       </div>
       <input type="file" id="licenseFile" accept="image/*" class="hidden" onchange="onLicenseImage(this)">
@@ -146,7 +147,7 @@
           </div>
           <div id="posResults"></div>
           <div id="remoteScannerBar" style="margin:8px 0;display:none">
-            <button class="btn btn-info btn-block" onclick="startRemoteScanner()">📡 مسح بالكاميرا وإرساله إلى الجهاز الآخر</button>
+            <button class="btn btn-info btn-block" onclick="startRemoteScanner('barcode', {target:'pos'})">📱 المسح بجهاز آخر</button>
           </div>
         </div>
         <div class="card">
@@ -184,6 +185,7 @@
           <div class="flex-actions">
             <button class="btn btn-info" onclick="openCategoriesModal()">🏷️ الفئات</button>
             <button class="btn btn-warning" onclick="openScanner('product')">📷</button>
+            <button class="btn btn-info" onclick="startRemoteScanner('barcode', {target:'product'})">📱</button>
             <button class="btn btn-primary" onclick="openProductModal()">➕ جديد</button>
           </div>
         </div>
