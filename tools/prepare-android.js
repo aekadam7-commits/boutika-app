@@ -78,7 +78,6 @@ public class BoutikaService extends Service {
     b.setContentTitle("Boutika").setContentText("السيرفر يعمل").setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true);
     Notification n = b.build();
     if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-    else if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
     else startForeground(1, n);
     return START_STICKY;
   }
