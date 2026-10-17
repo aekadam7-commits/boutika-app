@@ -172,7 +172,12 @@
             <button data-pay="credit" onclick="setPayType('credit')">📝 دين</button>
           </div>
           <div id="partialField" class="hidden">
-            <input id="posPaid" type="number" placeholder="المبلغ المدفوع" value="0" min="0" inputmode="decimal">
+            <input id="posPaid" type="number" placeholder="المبلغ المدفوع" value="0" min="0" inputmode="decimal" oninput="updateChange()">
+          </div>
+          <div id="cashGivenBox" class="cash-given">
+            <label class="lbl">💵 المبلغ المقبوض من الزبون (اختياري)</label>
+            <input id="posGiven" type="number" inputmode="decimal" min="0" placeholder="مثال: 200" oninput="updateChange()">
+            <div id="posGivenInfo" class="change-info"></div>
           </div>
           <button class="btn btn-success btn-block" onclick="finalizeSale()">✅ إتمام البيع</button>
         </div>

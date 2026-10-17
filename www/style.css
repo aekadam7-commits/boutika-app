@@ -201,3 +201,12 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--primary);bo
 @keyframes scanline{0%,100%{transform:translateY(-38px);opacity:.6}50%{transform:translateY(38px);opacity:1}}
 .scan-link{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9000;display:flex;align-items:center;gap:10px;background:#2b6cb0;color:#fff;padding:6px 8px 6px 14px;border-radius:999px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);max-width:92vw}
 .scan-link button{background:#fff;color:#c53030;border:0;border-radius:999px;padding:4px 12px;font-weight:700;cursor:pointer}
+
+/* المبلغ المقبوض / الباقي للزبون */
+.change-info{min-height:0;margin:6px 0 2px;font-size:14px}
+.change-info.ok{background:#e8f7ee;color:#138a45;padding:8px 10px;border-radius:8px}
+.change-info.bad{background:#fdecea;color:#c62828;padding:8px 10px;border-radius:8px}
+.cash-given{margin:8px 0}
+.scan-row{display:flex;gap:6px;align-items:center;margin:6px 0}
+.scan-row input{flex:1}
+.inv-hit{background:#fff8d6;transition:background .6s}
