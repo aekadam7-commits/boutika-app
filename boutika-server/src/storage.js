@@ -45,7 +45,8 @@ function saveMeta() {
 }
 
 function indexEntry(e) {
-  latest.set(e.table + ':' + e.id, e);
+  const logicalId = e && e.data && e.data.id != null ? e.data.id : '__obj__';
+  latest.set(e.table + ':' + String(logicalId), e);
   if (e && e.id) entryIds.set(String(e.id), e);
   recent.push(e);
   if (recent.length > RECENT_MAX) recent.splice(0, recent.length - RECENT_MAX);

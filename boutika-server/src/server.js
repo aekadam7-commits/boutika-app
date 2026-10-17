@@ -19,6 +19,7 @@ const WWW = path.resolve(process.env.BOUTIKA_WWW ||
 const REQUIRE_TOKEN = process.env.BOUTIKA_REQUIRE_TOKEN === '1';
 const MAX_UPLOAD = (+process.env.BOUTIKA_MAX_UPLOAD_MB || 25) * 1024 * 1024;
 const MAX_BATCH = 5000;
+const scanClients = new Map();
 
 storage.load();
 const meta = storage.getMeta();
@@ -51,6 +52,16 @@ let wss;
 function broadcast(obj, except) {
   const payload = JSON.stringify(obj);
   wss.clients.forEach(c => { if (c.readyState === 1 && c !== except) c.send(payload); });
+}
+function sendScan(obj, except) {
+  const payload = JSON.stringify(obj);
+  if (obj.targetDeviceId) {
+    const target = scanClients.get(String(obj.targetDeviceId));
+    if (target && target.readyState === 1 && target !== except) { target.send(payload); return true; }
+    return false;
+  }
+  broadcast(obj, except);
+  return true;
 }
 function acceptEntries(list, except) {
   const accepted = [], rejected = [], duplicates = [];
@@ -102,7 +113,8 @@ app.get('/api/state', guard, (req, res) => {
 app.post('/api/scan', guard, (req, res) => {
   const barcode = req.body && req.body.barcode;
   if (!barcode) return res.status(400).json({ ok: false });
-  broadcast({ type: 'scan', barcode: String(barcode), from: req.body.from });
+  const delivered = sendScan({ type: 'scan', barcode: String(barcode), from: req.body.from, targetDeviceId: req.body.targetDeviceId || null, requestId: req.body.requestId || null });
+  if (!delivered) return res.status(409).json({ ok: false, error: 'target device offline' });
   res.json({ ok: true });
 });
 
@@ -142,18 +154,24 @@ server.on('upgrade', (req, socket, head) => {
 
 wss.on('connection', ws => {
   ws.isAlive = true;
+  let connectedDeviceId = null;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.send(JSON.stringify({ type: 'hello', seq: meta.seq }));
   ws.on('message', msg => {
     try {
       const d = JSON.parse(msg);
+      if (d.type === 'hello-device' && d.deviceId) { connectedDeviceId = String(d.deviceId); scanClients.set(connectedDeviceId, ws); return; }
       if (d.type === 'push' && Array.isArray(d.entries)) {
         const result = acceptEntries(d.entries, ws);
         try { ws.send(JSON.stringify({ type: 'ack', accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: result.seq })); } catch (_) {}
       }
-      if (d.type === 'scan' && d.barcode) broadcast({ type: 'scan', barcode: String(d.barcode), from: d.from }, ws);
+      if (d.type === 'scan' && d.barcode) {
+        const delivered = sendScan({ type: 'scan', barcode: String(d.barcode), from: d.from, targetDeviceId: d.targetDeviceId || null, requestId: d.requestId || null }, ws);
+        if (!delivered) { try { ws.send(JSON.stringify({ type: 'scan_error', requestId: d.requestId || null, error: 'target device offline' })); } catch (_) {} }
+      }
     } catch (e) { console.warn('WS msg error:', e.message); }
   });
+  ws.on('close', () => { if (connectedDeviceId) scanClients.delete(connectedDeviceId); });
 });
 // فحص الاتصال كل 30 ثانية (مهم لشبكات الهاتف)
 setInterval(() => {
