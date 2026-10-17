@@ -103,10 +103,9 @@
     <h2>🛒 Boutik <span id="shopNameHeader" class="shop-name"></span></h2>
     <div class="user-info">
       <span id="shiftBadge" class="shift-badge hidden">🟢 وردية</span>
-      <span id="netStatus" class="net-status"></span>
+      <span id="netStatus" class="net-status"></span><span id="syncStatus" class="net-status" title="حالة المزامنة"></span>
       <span id="currentUser"></span>
       <button onclick="openShareModal()" title="مشاركة التطبيق">📤</button>
-      <button onclick="openBackup()" title="نسخ احتياطي">💾</button>
       <button onclick="toggleDark()" title="الوضع الليلي">🌓</button>
       <select id="languageSelect" class="lang-sel" title="Language">
         <option value="ar">العربية</option>
@@ -411,10 +410,6 @@
           📱 إظهار QR + الرابط
         </button>
       </div>
-      <div class="card">
-        <h3>🗑️ إدارة البيانات</h3>
-        <div id="dataManagement"></div>
-      </div>
       <div class="card"><h3>📡 الشبكة</h3><div id="netSettings"></div></div>
       <div class="card">
         <h3>👤 المستخدمون</h3>
@@ -504,7 +499,6 @@
 <script type="boutika/defer" src="js/modules/reservations.js"></script>
 <script type="boutika/defer" src="js/modules/users.js"></script>
 <script type="boutika/defer" src="js/modules/scanner.js"></script>
-<script type="boutika/defer" src="js/modules/backup.js"></script>
 <script type="boutika/defer" src="js/modules/share.js"></script>
 <script type="boutika/defer" src="js/modules/settings.js"></script>
 <script type="boutika/defer" src="js/app.js"></script>
