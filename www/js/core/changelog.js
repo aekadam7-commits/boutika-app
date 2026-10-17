@@ -67,7 +67,7 @@ const ChangeLog = {
     if (nv === null || typeof nv !== 'object') return;
 
     const now = Date.now(), dev = this._deviceId();
-    const mk = d => ({ id: this._uuid(), table, data: d, ts: now, deviceId: dev, synced: false });
+    const mk = d => ({ id: this._uuid(), table, data: d, ts: now, deviceId: dev, baseSeq: (typeof Sync !== 'undefined' && Sync && Sync._getSeq) ? Sync._getSeq() : +(localStorage.getItem('boutika_sync_seq') || 0), synced: false });
     const entries = [];
 
     if (this.OBJECT_TABLES.indexOf(table) !== -1) {
@@ -103,7 +103,7 @@ const ChangeLog = {
   _enqueue(entries) {
     try {
       entries.forEach(e => {
-        try { if (typeof Sync !== 'undefined' && Sync && Sync.pushImmediate && Sync.pushImmediate(e)) e.synced = true; } catch (err) {}
+        try { if (typeof Sync !== 'undefined' && Sync && Sync.pushImmediate) Sync.pushImmediate(e); } catch (err) {}
       });
       this._applying = true;                                              // كتابة السجل نفسه لا تُسجَّل
       let log = JSON.parse(localStorage.getItem(DB.PREFIX + 'changelog') || '[]');
@@ -208,7 +208,7 @@ const ChangeLog = {
       if (this.SKIP.indexOf(t) !== -1) continue;
       let v; try { v = JSON.parse(localStorage.getItem(k)); } catch (e) { continue; }
       if (!v || typeof v !== 'object') continue;
-      const mk = d => ({ id: this._uuid(), table: t, data: d, ts: now, deviceId: dev, synced: true });
+      const mk = d => ({ id: this._uuid(), table: t, data: d, ts: now, deviceId: dev, baseSeq: (typeof Sync !== 'undefined' && Sync && Sync._getSeq) ? Sync._getSeq() : +(localStorage.getItem('boutika_sync_seq') || 0), synced: false });
       if (this.OBJECT_TABLES.indexOf(t) !== -1) {
         if (!Array.isArray(v)) out.push(mk({ id: '__obj__', _obj: this._syncableObject(t, v), _updated_at: now }));
       } else if (Array.isArray(v)) {

@@ -109,6 +109,17 @@ function updateNetStatus() {
     el.className = 'net-status offline';
     el.textContent = '❓ غير محدد';
   }
+  if (typeof updateSyncStatus === 'function') updateSyncStatus();
+}
+
+function updateSyncStatus() {
+  const el = document.getElementById('syncStatus');
+  if (!el || typeof Sync === 'undefined') return;
+  const n = (typeof ChangeLog !== 'undefined') ? ChangeLog.pending().length : 0;
+  if (Sync.state === 'synced' && n === 0) { el.className = 'net-status online'; el.textContent = '✅ تمت المزامنة'; }
+  else if (Sync.state === 'syncing' || n > 0) { el.className = 'net-status'; el.textContent = '🔄 جارٍ المزامنة'; }
+  else if (Sync.state === 'conflict') { el.className = 'net-status offline'; el.textContent = '⚠️ تعارض'; }
+  else { el.className = 'net-status offline'; el.textContent = '⏳ بانتظار الاتصال'; }
 }
 
 function scanForHosts() { Net.scanForHosts(); }

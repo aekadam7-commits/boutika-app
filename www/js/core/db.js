@@ -78,7 +78,7 @@ function initDB() {
 
     ['products','categories','customers','suppliers','invoices','invoiceItems',
      'purchases','purchaseItems','payments','stockMovements','shifts','auditLog',
-     'inventorySessions','inventoryItems','changelog','expenses','reservations','returns'
+     'inventorySessions','inventoryItems','changelog','syncConflicts','expenses','reservations','returns'
     ].forEach(k => {
       localStorage.setItem(DB.PREFIX + k, '[]');
     });
