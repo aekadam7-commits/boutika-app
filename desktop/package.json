@@ -18,6 +18,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "build/icon.png",
       "package.json",
       "boutika-server/**/*",
       "www/**/*",
