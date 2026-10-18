@@ -242,6 +242,20 @@ app.post('/api/restore', adminGuard, (req, res) => {
     res.status(status).json({ ok: false, error: e.message || 'restore failed' });
   }
 });
+app.post('/api/backup/upload', adminGuard, (req, res) => {   // رفع ملف نسخة واستعادته
+  try {
+    const b = req.body;
+    if (!b || !Array.isArray(b.entries) || !b.entries.every(e => e && e.table && e.data)) return res.status(400).json({ ok: false, error: 'invalid backup format' });
+    const name = 'backup-' + new Date().toISOString().replace(/[:.]/g, '-') + '-uploaded.json';
+    fs.writeFileSync(path.join(storage.paths.BACKUP_DIR, name), JSON.stringify({ meta: b.meta || {}, entries: b.entries }));
+    const result = storage.restoreBackup(name);
+    const entries = storage.since(Math.max(0, result.seq - result.restored - 5));
+    if (entries.length) broadcast({ type: 'batch', entries });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message || 'restore failed' });
+  }
+});
 app.post('/api/compact', adminGuard, (req, res) => res.json({ ok: true, records: storage.compact() }));
 
 /* ---------- WebSocket ---------- */
@@ -302,8 +316,10 @@ setInterval(() => { try { storage.backup(); } catch (e) { console.error('backup 
 function shutdown() { try { storage.snapshot(); storage.flush(); } catch (_) {} process.exit(0); }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+// إيقاف آمن يطلبه تطبيق سطح المكتب (يحفظ البيانات ثم يخرج)
+process.on('message', m => { if (m && m.type === 'shutdown') shutdown(); });
 
-server.listen(PORT, '0.0.0.0', () => {
+const onListen = () => {
   const ips = [];
   try { // قد يفشل os.networkInterfaces() على بعض إصدارات أندرويد
     const nets = os.networkInterfaces();
@@ -325,10 +341,39 @@ server.listen(PORT, '0.0.0.0', () => {
     const { channel } = require('bridge');
     const announce = () => channel.send('server-ready', info);
     announce();
-    channel.addListener('get-info', announce);
+    if (!global.__boutikaInfoListener) { global.__boutikaInfoListener = true; channel.addListener('get-info', announce); }
   } catch (_) {}
-});
+};
+server.listen(PORT, '0.0.0.0', onListen);
 server.on('error', e => {
   console.error('Server error:', e.message);
   if (process.send) { try { process.send({ type: 'server-error', message: e.message }); } catch (_) {} }
 });
+
+/* ---------- إيقاف / تشغيل / إعادة تشغيل الخادم من داخل التطبيق (أندرويد عبر قناة Node) ---------- */
+function stopListening() {
+  return new Promise(resolve => {
+    if (!server.listening) return resolve();
+    try { storage.snapshot(); storage.flush(); } catch (_) {}
+    try { wss.clients.forEach(c => { try { c.terminate(); } catch (_) {} }); } catch (_) {}
+    server.close(() => resolve());
+    if (server.closeAllConnections) { try { server.closeAllConnections(); } catch (_) {} }
+    setTimeout(resolve, 2000);
+  });
+}
+let controlBusy = false;
+async function serverControl(action) {
+  if (controlBusy) return;
+  controlBusy = true;
+  try {
+    if (action === 'stop' || action === 'restart') await stopListening();
+    if ((action === 'start' || action === 'restart') && !server.listening) server.listen(PORT, '0.0.0.0', onListen);
+  } finally { controlBusy = false; }
+}
+try {
+  const { channel } = require('bridge');
+  channel.addListener('server-control', a => {
+    const msg = Array.isArray(a) ? a[0] : a;
+    serverControl(typeof msg === 'string' ? msg : msg && msg.action).catch(e => console.error('server-control', e));
+  });
+} catch (_) {}
