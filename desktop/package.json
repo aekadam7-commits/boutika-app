@@ -34,16 +34,9 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
-      "icon": "build/icon.ico",
-      "artifactName": "Boutika-${version}-${arch}.${ext}"
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
@@ -51,6 +44,14 @@
       ],
       "icon": "build/icon.png",
       "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "Boutika-Setup-${version}.${ext}"
     }
   },
   "dependencies": {
