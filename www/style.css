@@ -23,7 +23,7 @@ body{font-family:Tahoma,'Segoe UI',Arial,sans-serif;background:var(--bg);color:v
 .mode-icon{font-size:38px;margin-bottom:8px}
 .mode-name{font-weight:700;font-size:16px;color:var(--text);margin-bottom:4px}
 .mode-desc{font-size:12px;color:var(--text-2);line-height:1.5}
-.mode-network{margin-top:20px;text-align:right}
+.mode-network{margin-top:20px;text-align:start}
 .mode-foot{color:var(--muted);font-size:12px;margin-top:20px}
 .host-list{max-height:200px;overflow-y:auto;margin:8px 0;border:1px solid var(--border);border-radius:var(--radius-sm)}
 .host-list:empty{display:none}
@@ -34,7 +34,7 @@ body{font-family:Tahoma,'Segoe UI',Arial,sans-serif;background:var(--bg);color:v
 .host-item span{font-size:11px;color:var(--text-2)}
 
 .license-screen{position:fixed;inset:0;z-index:10000;background:linear-gradient(135deg,#edf3ff,#f8f5ff);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto}
-.license-box{width:min(460px,100%);margin:auto;background:var(--bg-2);border-radius:24px;padding:22px;box-shadow:0 15px 50px #1e3a8a22;text-align:right}
+.license-box{width:min(460px,100%);margin:auto;background:var(--bg-2);border-radius:24px;padding:22px;box-shadow:0 15px 50px #1e3a8a22;text-align:start}
 .license-logo{width:70px;height:70px;margin:auto;border-radius:20px;background:linear-gradient(135deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center;font-size:34px}
 .license-box h2{text-align:center;margin:12px 0 4px}
 .license-status{text-align:center;font-weight:700;margin:4px 0;font-size:14px}
@@ -45,7 +45,7 @@ body{font-family:Tahoma,'Segoe UI',Arial,sans-serif;background:var(--bg);color:v
 .foot{text-align:center;color:var(--muted);font-size:11px;margin-top:12px}
 
 .login-screen{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#edf3ff 0%,#f8f5ff 55%,#eef8ff 100%);display:flex;align-items:center;justify-content:center;padding:20px}
-.login-box{width:min(390px,100%);background:var(--bg-2);border-radius:25px;padding:30px 26px 22px;box-shadow:0 15px 50px #1e3a8a22;text-align:right}
+.login-box{width:min(390px,100%);background:var(--bg-2);border-radius:25px;padding:30px 26px 22px;box-shadow:0 15px 50px #1e3a8a22;text-align:start}
 .login-logo{width:76px;height:76px;margin:0 auto 12px;border-radius:22px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 8px 22px #2255df33}
 .login-box h1{text-align:center;font-size:27px;font-weight:800;color:var(--text)}
 .login-sub{text-align:center;color:var(--text-2);font-size:14px;margin:5px 0 18px}
@@ -84,7 +84,7 @@ main{padding:14px;max-width:1400px;margin:0 auto}
 .card h3{font-size:15px;margin-bottom:12px;color:var(--text)}
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
-.stat{background:var(--bg-2);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);border-right:4px solid var(--primary)}
+.stat{background:var(--bg-2);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);border-inline-start:4px solid var(--primary)}
 .stat .label{font-size:12px;color:var(--text-2);margin-bottom:6px}
 .stat .value{font-size:20px;font-weight:800;color:var(--text)}
 
@@ -92,7 +92,7 @@ main{padding:14px;max-width:1400px;margin:0 auto}
 @media(max-width:850px){.pos-grid{grid-template-columns:1fr}}
 .search-bar{display:flex;gap:8px;margin-bottom:12px}
 .search-bar input{flex:1;padding:11px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-2);color:var(--text);font-size:14px;font-family:inherit}
-.cart-count{background:var(--danger);color:#fff;border-radius:10px;padding:2px 9px;font-size:12px;margin-right:6px}
+.cart-count{background:var(--danger);color:#fff;border-radius:10px;padding:2px 9px;font-size:12px;margin-inline-start:6px}
 .cart-total{display:flex;justify-content:space-between;padding:12px 0;font-size:18px;font-weight:800;border-top:2px dashed var(--border);margin:12px 0}
 .payment-options{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}
 .payment-options button{padding:10px;border:1px solid var(--border);background:var(--bg-2);color:var(--text);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:inherit}
@@ -111,7 +111,7 @@ main{padding:14px;max-width:1400px;margin:0 auto}
 
 .table-wrap{overflow-x:auto;margin-top:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:9px 6px;border-bottom:1px solid var(--border);text-align:right}
+th,td{padding:9px 6px;border-bottom:1px solid var(--border);text-align:start}
 th{color:var(--text-2);font-size:11px;font-weight:700}
 tbody tr:hover{background:var(--bg)}
 
@@ -151,7 +151,7 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--primary);bo
 .audit-row .who{font-weight:700;color:var(--primary)}
 
 .contact-card{max-width:700px;margin:0 auto;text-align:center}
-.contact-list{display:grid;gap:12px;text-align:right;margin-top:20px}
+.contact-list{display:grid;gap:12px;text-align:start;margin-top:20px}
 .contact-row{display:flex;justify-content:space-between;align-items:center;padding:15px;border:1px solid var(--border);border-radius:12px;text-decoration:none;color:inherit;transition:all .15s}
 .contact-row:hover{background:var(--bg);border-color:var(--primary)}
 .contact-foot{margin-top:22px;padding:14px;border-radius:12px;background:var(--bg);color:var(--muted);font-size:13px}
@@ -280,3 +280,10 @@ body, button, input, select, textarea, .btn, .card, table {
   box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
   margin-top: 10px;
 }
+
+/* ---------- مبدّل اللغة العائم (شاشة الوضع والدخول) ---------- */
+.mode-box,.login-box{position:relative}
+.lang-sel-float{position:absolute;top:12px;inset-inline-end:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);z-index:2}
+.lang-sel-float option{color:#000}
+/* ---------- اتجاه LTR (فرنسي / إنجليزي) ---------- */
+body.lang-ltr{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}

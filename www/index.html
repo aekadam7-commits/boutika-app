@@ -13,6 +13,11 @@
 
 <div id="modeScreen" class="mode-screen">
   <div class="mode-box">
+    <select class="lang-sel lang-sel-float" title="Language" data-no-i18n>
+      <option value="ar">العربية</option>
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+    </select>
     <div class="mode-logo">🛒</div>
     <h1>Boutik <span class="ver">v4</span></h1>
     <p class="mode-sub">اختر طريقة التشغيل</p>
@@ -83,6 +88,11 @@
 
 <div id="loginScreen" class="login-screen hidden">
   <div class="login-box">
+    <select class="lang-sel lang-sel-float" title="Language" data-no-i18n>
+      <option value="ar">العربية</option>
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+    </select>
     <div class="login-logo">🛒</div>
     <h1>Boutik</h1>
     <p class="login-sub">نظام إدارة المحل — v4</p>
@@ -106,7 +116,7 @@
       <span id="currentUser"></span>
       <button onclick="openShareModal()" title="مشاركة التطبيق">📤</button>
       <button onclick="toggleDark()" title="الوضع الليلي">🌓</button>
-      <select id="languageSelect" class="lang-sel" title="Language">
+      <select id="languageSelect" class="lang-sel" title="Language" data-no-i18n>
         <option value="ar">العربية</option>
         <option value="fr">Français</option>
         <option value="en">English</option>
@@ -497,6 +507,8 @@
 <script type="boutika/defer" src="vendor/html5-qrcode.min.js"></script>
 <script type="boutika/defer" src="js/core/utils.js"></script>
 <script type="boutika/defer" src="js/core/i18n.js"></script>
+<script type="boutika/defer" src="js/i18n/fr.js"></script>
+<script type="boutika/defer" src="js/i18n/en.js"></script>
 <script type="boutika/defer" src="js/core/store.js"></script>
 <script type="boutika/defer" src="js/core/db.js"></script>
 <script type="boutika/defer" src="js/core/net.js"></script>
