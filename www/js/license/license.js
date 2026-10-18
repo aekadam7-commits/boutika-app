@@ -325,7 +325,7 @@ function canvasBlob(canvas) {
 
 async function shareDeviceQR() {
   const canvas = document.getElementById('deviceQR');
-  const text = 'رمز جهازي لتفعيل Boutika:\n' + Device.qrText();
+  const text = T('رمز جهازي لتفعيل Boutika') + ':\n' + Device.qrText();
   try {
     const blob = await canvasBlob(canvas);
     const file = new File([blob], 'boutika-device.png', { type: 'image/png' });
@@ -363,7 +363,7 @@ function showSubscription() {
   renderDeviceQR();
   if (cont) cont.classList.add('hidden');
 
-  const fmt = ms => new Date(ms).toLocaleDateString('ar-DZ');
+  const fmt = ms => new Date(ms).toLocaleDateString(BoutikI18n.locale());
   if (st.kind === 'license') {
     status.textContent = '✅ الترخيص فعّال';
     status.style.color = '#138a45';
