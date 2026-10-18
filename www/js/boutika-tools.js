@@ -62,7 +62,7 @@
     const FS = plugin('Filesystem'), SH = plugin('Share');
     if (isNative && FS && SH) {                              // احتياطي: نافذة المشاركة
       const w = await FS.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
-      await SH.share({ title: name, text: 'نسخة احتياطية Boutika', url: w.uri, dialogTitle: 'حفظ النسخة الاحتياطية' });
+      await SH.share({ title: name, text: T('نسخة احتياطية') + ' Boutika', url: w.uri, dialogTitle: T('حفظ النسخة الاحتياطية') });
       return true;
     }
     const file = new File([text], name, { type: 'application/json' });
