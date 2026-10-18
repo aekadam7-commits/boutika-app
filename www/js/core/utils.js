@@ -5,6 +5,10 @@
 function now() { return new Date().toISOString(); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
+// لغة التواريخ والأرقام حسب لغة الواجهة
+function _loc() { return (typeof BoutikI18n !== 'undefined') ? BoutikI18n.locale() : 'ar-DZ'; }
+function _numLoc() { return (typeof BoutikI18n !== 'undefined') ? BoutikI18n.numLocale() : 'fr-DZ'; }
+
 function currency() {
   try { return (DB.settings().currency) || 'دج'; }
   catch { return 'دج'; }
@@ -12,24 +16,24 @@ function currency() {
 
 function fmt(n) {
   const num = Number(n) || 0;
-  return num.toLocaleString('fr-DZ', { maximumFractionDigits: 2 }) + ' ' + currency();
+  return num.toLocaleString(_numLoc(), { maximumFractionDigits: 2 }) + ' ' + currency();
 }
 
 function fmtNum(n) {
-  return (Number(n) || 0).toLocaleString('fr-DZ', { maximumFractionDigits: 2 });
+  return (Number(n) || 0).toLocaleString(_numLoc(), { maximumFractionDigits: 2 });
 }
 
 function fmtDate(d) {
   if (!d) return '—';
   try {
     const dt = new Date(d);
-    return dt.toLocaleDateString('ar-DZ') + ' ' + dt.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' });
+    return dt.toLocaleDateString(_loc()) + ' ' + dt.toLocaleTimeString(_loc(), { hour: '2-digit', minute: '2-digit' });
   } catch { return '—'; }
 }
 
 function fmtDateShort(d) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('ar-DZ'); } catch { return '—'; }
+  try { return new Date(d).toLocaleDateString(_loc()); } catch { return '—'; }
 }
 
 function escapeHtml(s) {
@@ -96,7 +100,7 @@ function showChangeInfo(inputId, required) {
 }
 
 function exportCSV(filename, headers, rows) {
-  const csv = [headers, ...rows]
+  const csv = [headers.map(h => T(h)), ...rows]
     .map(r => r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(','))
     .join('\n');
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -166,11 +170,11 @@ function printHTML(content, title) {
   const style = document.createElement('style');
   style.id = '__print_style__';
   style.textContent = `
-    .print-layer { position:fixed; inset:0; z-index:99999; background:#fff; color:#000; overflow:auto; padding:12px; direction:rtl; font-family:Tahoma,Arial,sans-serif; }
+    .print-layer { position:fixed; inset:0; z-index:99999; background:#fff; color:#000; overflow:auto; padding:12px; direction:${(typeof BoutikI18n !== 'undefined') ? BoutikI18n.dir() : 'rtl'}; font-family:Tahoma,Arial,sans-serif; }
     .print-page { max-width:100%; margin:0 auto; font-size:13px; }
     .print-page h1,.print-page h2,.print-page h3 { text-align:center; margin:4px 0; }
     .print-page table { width:100%; border-collapse:collapse; margin:6px 0; font-size:12px; }
-    .print-page th,.print-page td { border-bottom:1px dashed #999; padding:3px 2px; text-align:right; }
+    .print-page th,.print-page td { border-bottom:1px dashed #999; padding:3px 2px; text-align:start; }
     .print-page th { border-bottom:1px solid #333; background:#f0f0f0; }
     .print-page .dashed { border-top:1px dashed #666; padding:4px 0; margin:4px 0; }
     .print-page .row { display:flex; justify-content:space-between; padding:2px 0; }
