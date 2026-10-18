@@ -210,3 +210,73 @@ input:focus,select:focus,textarea:focus{outline:0;border-color:var(--primary);bo
 .scan-row{display:flex;gap:6px;align-items:center;margin:6px 0}
 .scan-row input{flex:1}
 .inv-hit{background:#fff8d6;transition:background .6s}
+/* =========================================
+   تحسينات الخط وأرقام الفاتورة
+   ========================================= */
+
+/* 1. خط عربي عصري وواضح (Tajawal) */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap');
+
+body, button, input, select, textarea, .btn, .card, table {
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, sans-serif !important;
+}
+
+/* 2. تكبير أرقام جدول السلة */
+#cartItems table th {
+  font-size: 15px !important;
+  padding: 12px 8px !important;
+}
+#cartItems table td {
+  font-size: 16px !important;
+  padding: 12px 8px !important;
+  font-weight: 700; 
+}
+
+/* 3. تكبير الإجمالي الفرعي والخصم */
+#cartSubtotal, #cartDiscount {
+  font-size: 18px !important;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+/* 4. شريط "المجموع" الكبير جداً (مثل الشاشة الرقمية) */
+.cart-total {
+  background: #172033; /* لون داكن */
+  color: #00ff00; /* أخضر فسفوري */
+  font-size: 3.5rem !important; /* حجم ضخم */
+  font-weight: 800;
+  text-align: center;
+  padding: 15px;
+  border-radius: 15px;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 3px;
+  margin: 15px 0;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 25px;
+  padding-left: 25px;
+}
+.cart-total span:first-child {
+  font-family: 'Tajawal', sans-serif;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+/* 5. تكبير حقل المبلغ المقبوض */
+#posGiven, #posPaid {
+  font-size: 22px !important;
+  font-weight: bold;
+  text-align: center;
+  height: 55px;
+}
+
+/* 6. تكبير زر إتمام البيع */
+.btn-success[onclick="finalizeSale()"] {
+  font-size: 1.4rem !important;
+  padding: 18px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+  margin-top: 10px;
+}
