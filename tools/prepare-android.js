@@ -101,6 +101,11 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.ActivityCallback;
+import androidx.activity.result.ActivityResult;
+import android.app.Activity;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 @CapacitorPlugin(name = "BoutikaService")
 public class BoutikaPlugin extends Plugin {
@@ -126,6 +131,33 @@ public class BoutikaPlugin extends Plugin {
     i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     getContext().startActivity(i);
     call.resolve();
+  }
+
+  // حفظ ملف في مسار يختاره المستخدم (نافذة "حفظ باسم" الخاصة بأندرويد)
+  @PluginMethod
+  public void saveFile(PluginCall call) {
+    Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+    i.addCategory(Intent.CATEGORY_OPENABLE);
+    i.setType("application/json");
+    i.putExtra(Intent.EXTRA_TITLE, call.getString("name", "boutika-backup.json"));
+    startActivityForResult(call, i, "saveFileResult");
+  }
+
+  @ActivityCallback
+  private void saveFileResult(PluginCall call, ActivityResult result) {
+    if (call == null) return;
+    if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) {
+      call.reject("cancelled");
+      return;
+    }
+    try {
+      OutputStream os = getContext().getContentResolver().openOutputStream(result.getData().getData());
+      os.write(call.getString("data", "").getBytes(StandardCharsets.UTF_8));
+      os.close();
+      call.resolve();
+    } catch (Exception e) {
+      call.reject(String.valueOf(e.getMessage()));
+    }
   }
 }
 `);
