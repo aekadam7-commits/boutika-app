@@ -29,7 +29,7 @@ function startServer() {
     let done = false;
     const finish = v => { if (!done) { done = true; srvInfo = v; resolve(v); } };
     try {
-      srv = fork(path.join(__dirname, 'boutika-server', 'src', 'server.js'), [], {
+      const proc = fork(path.join(__dirname, 'boutika-server', 'src', 'server.js'), [], {
         env: {
           ...process.env,
           PORT: String(PORT),
@@ -38,25 +38,51 @@ function startServer() {
         },
         stdio: 'ignore'
       });
-      srv.on('message', m => {
+      srv = proc;
+      proc.on('message', m => {
         if (m && m.type === 'server-ready') finish(m);
         if (m && m.type === 'server-error') { log('server-error ' + m.message); finish({ ...fallback, error: m.message }); }
       });
-      srv.on('exit', code => { log('server exit ' + code); srv = null; srvInfo = null; finish(fallback); });
-      srv.on('error', e => log('server error: ' + e));
+      proc.on('exit', code => {
+        log('server exit ' + code);
+        if (srv === proc) { srv = null; srvInfo = null; }   // لا نمسح خادمًا جديدًا بدأ بعد هذا
+        finish(fallback);
+      });
+      proc.on('error', e => log('server error: ' + e));
       setTimeout(() => finish(fallback), 6000);
     } catch (e) { finish({ ...fallback, error: String(e) }); }
   });
 }
 
+// إيقاف آمن: يطلب من الخادم حفظ البيانات ثم الخروج، ثم يقتله إن تأخر
 function stopServer() {
-  if (srv) { try { srv.kill(); } catch (_) {} }
-  srv = null; srvInfo = null;
-  return true;
+  const proc = srv;
+  if (!proc) return Promise.resolve(true);
+  return new Promise(resolve => {
+    let ended = false;
+    const end = () => { if (!ended) { ended = true; if (srv === proc) { srv = null; srvInfo = null; } resolve(true); } };
+    proc.once('exit', end);
+    try { proc.send({ type: 'shutdown' }); } catch (_) {}
+    setTimeout(() => { try { proc.kill(); } catch (_) {} }, 3000);
+    setTimeout(end, 5000);
+  });
 }
 
 ipcMain.handle('boutika:start-server', startServer);
 ipcMain.handle('boutika:stop-server', stopServer);
+ipcMain.handle('boutika:restart-server', async () => { await stopServer(); return startServer(); });
+ipcMain.handle('boutika:save-file', async (_e, name, text) => {
+  const r = await dialog.showSaveDialog(win, { title: 'حفظ النسخة الاحتياطية', defaultPath: String(name || 'boutika-backup.json'), filters: [{ name: 'JSON', extensions: ['json'] }] });
+  if (r.canceled || !r.filePath) return { canceled: true };
+  fs.writeFileSync(r.filePath, String(text), 'utf8');
+  return { path: r.filePath };
+});
+ipcMain.handle('boutika:open-file', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'اختيار ملف النسخة الاحتياطية', properties: ['openFile'], filters: [{ name: 'JSON', extensions: ['json'] }, { name: 'All', extensions: ['*'] }] });
+  if (r.canceled || !r.filePaths[0]) return { canceled: true };
+  return { name: path.basename(r.filePaths[0]), text: fs.readFileSync(r.filePaths[0], 'utf8') };
+});
+ipcMain.handle('boutika:server-status', () => ({ running: !!srv, info: srvInfo }));
 
 function errorPage(title, detail) {
   const html = '<html dir="rtl"><body style="font-family:Tahoma,sans-serif;padding:40px;background:#fff;color:#222">' +
@@ -112,5 +138,5 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(createWindow);
-  app.on('window-all-closed', () => { stopServer(); app.quit(); });
+  app.on('window-all-closed', () => { stopServer().then(() => app.quit()); });
 }
