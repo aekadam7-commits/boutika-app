@@ -12,33 +12,12 @@
   const plugin = n => (cap && cap.Plugins && cap.Plugins[n]) || null;
   let runtimeStarted = false;
 
-  /* ---------- 1) بطاقة "جهاز مستقل" ---------- */
-  function addStandaloneCard() {
-    const box = document.querySelector('.mode-cards');
-    if (!box || box.querySelector('[data-standalone]')) return;
-    const b = document.createElement('button');
-    b.className = 'mode-card';
-    b.setAttribute('data-standalone', '1');
-    b.innerHTML = '<div class="mode-icon">💼</div><div class="mode-name">جهاز مستقل</div>' +
-                  '<div class="mode-desc">يعمل وحده دون شبكة أو سيرفر</div>';
-    b.onclick = function () {
-      DB.setObj('mode', { current: 'host', host: null, standalone: true });
-      if (typeof Net !== 'undefined' && Net.current) Net.current();
-      if (typeof toast === 'function') toast('✅ تم اختيار الوضع: مستقل');
-      afterModeChosen();
-    };
-    box.appendChild(b);
-    box.style.gridTemplateColumns = window.innerWidth > 700 ? '1fr 1fr 1fr' : '';
-  }
-
-  /* ---------- 2) المستقل لا يفتح اتصال مزامنة ---------- */
-  if (typeof Sync !== 'undefined' && Sync.start) {
-    const origStart = Sync.start.bind(Sync);
-    Sync.start = function () {
-      if (DB.mode().standalone) return;
-      return origStart();
-    };
-  }
+  /* ---------- 1) لا وضع مستقل: مضيف أو عميل فقط ----------
+     أي جهاز كان مستقلًا يتحول تلقائيًا إلى مضيف (يعمل وحده بلا أي عميل). */
+  try {
+    const m0 = DB.mode();
+    if (m0 && m0.standalone) DB.setObj('mode', { current: 'host', host: null });
+  } catch (e) { console.warn('standalone migration', e); }
 
   /* ---------- 3) قائمة عناوين أوسع عند البحث عن مضيف ---------- */
   if (typeof Net !== 'undefined') {
@@ -111,6 +90,4 @@
   }
 
   /* ---------- 7) المسح عن بُعد أصبح عبر طلب موجّه للجهاز المختار ---------- */
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addStandaloneCard);
-  else addStandaloneCard();
 })();
