@@ -71,7 +71,7 @@ function copyShareUrl() {
 }
 
 function shareNative() {
-  const text = `🛒 Boutik — نظام إدارة المحل\n\nحمّل التطبيق من:\n${BOUTIK_DOWNLOAD_URL}`;
+  const text = T(`🛒 Boutik — نظام إدارة المحل\n\nحمّل التطبيق من:\n`) + BOUTIK_DOWNLOAD_URL;
   if (navigator.share) {
     navigator.share({ title: 'Boutik', text: text, url: BOUTIK_DOWNLOAD_URL }).catch(() => {});
   } else if (navigator.clipboard) {

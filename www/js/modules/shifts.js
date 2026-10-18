@@ -39,10 +39,10 @@ function renderShiftCard() {
 
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="stat" style="border-right-color:#27ae60"><div class="label">مبيعات الوردية</div><div class="value">${fmt(total)}</div></div>
-      <div class="stat" style="border-right-color:#3498db"><div class="label">فواتير</div><div class="value">${invoices.length}</div></div>
-      <div class="stat" style="border-right-color:#f39c12"><div class="label">نقدي</div><div class="value">${fmt(cash)}</div></div>
-      <div class="stat" style="border-right-color:#e74c3c"><div class="label">دين</div><div class="value">${fmt(credit)}</div></div>
+      <div class="stat" style="border-inline-start-color:#27ae60"><div class="label">مبيعات الوردية</div><div class="value">${fmt(total)}</div></div>
+      <div class="stat" style="border-inline-start-color:#3498db"><div class="label">فواتير</div><div class="value">${invoices.length}</div></div>
+      <div class="stat" style="border-inline-start-color:#f39c12"><div class="label">نقدي</div><div class="value">${fmt(cash)}</div></div>
+      <div class="stat" style="border-inline-start-color:#e74c3c"><div class="label">دين</div><div class="value">${fmt(credit)}</div></div>
     </div>
     <div class="small" style="margin-bottom:10px">
       🕐 ${fmtDate(currentShift.opened_at)}<br>

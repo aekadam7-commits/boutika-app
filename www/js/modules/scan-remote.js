@@ -38,8 +38,8 @@ const ScanRemote = {
       box.id = 'remoteScannerPicker';
       box.style.cssText = 'position:fixed;inset:0;background:#0008;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px';
       const items = list.map((d, i) =>
-        `<button data-i="${i}" style="width:100%;padding:14px;margin:6px 0;border:0;border-radius:10px;background:#f5f5f5;text-align:right;font-size:15px">${pref && d.id === pref.id ? '⭐' : '📱'} ${escapeHtml(d.label || ('جهاز • ' + String(d.id).slice(-5)))}</button>`).join('');
-      box.innerHTML = `<div style="background:#fff;color:#222;border-radius:16px;padding:18px;width:min(420px,100%);direction:rtl"><h3 style="margin:0 0 12px">${escapeHtml(title || 'اختر الجهاز')}</h3><div>${items}</div><button id="remoteScannerCancel" style="width:100%;padding:12px;margin-top:8px;border:0;border-radius:10px">إلغاء</button></div>`;
+        `<button data-i="${i}" style="width:100%;padding:14px;margin:6px 0;border:0;border-radius:10px;background:#f5f5f5;text-align:start;font-size:15px">${pref && d.id === pref.id ? '⭐' : '📱'} ${escapeHtml(d.label || ('جهاز • ' + String(d.id).slice(-5)))}</button>`).join('');
+      box.innerHTML = `<div style="background:#fff;color:#222;border-radius:16px;padding:18px;width:min(420px,100%);direction:${BoutikI18n.dir()}"><h3 style="margin:0 0 12px">${escapeHtml(title || 'اختر الجهاز')}</h3><div>${items}</div><button id="remoteScannerCancel" style="width:100%;padding:12px;margin-top:8px;border:0;border-radius:10px">إلغاء</button></div>`;
       document.body.appendChild(box);
       box.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const d = list[+b.getAttribute('data-i')]; box.remove(); resolve(d); });
       box.querySelector('#remoteScannerCancel').onclick = () => { box.remove(); resolve(null); };

@@ -317,7 +317,7 @@ function renderCart() {
                  inputmode="numeric" min="1">
           <button class="btn btn-success btn-sm" onclick="increaseQty(${i})" style="min-width:34px;padding:6px 10px;font-size:16px;font-weight:700">➕</button>
         </div>
-        <div style="text-align:left;font-size:13px">
+        <div style="text-align:end;font-size:13px">
           <div class="small">${fmt(it.price)} × ${it.qty}</div>
           <b style="color:#138a45">${fmt(it.price * it.qty)}</b>
         </div>

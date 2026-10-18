@@ -19,7 +19,7 @@ function renderReservations() {
       const statusLabel = r.status === 'delivered' ? '✅ مُسلَّم' : '🟢 نشط';
       const statusColor = r.status === 'delivered' ? '#138a45' : '#27ae60';
       return `
-        <div class="card" style="border-right:4px solid ${statusColor}">
+        <div class="card" style="border-inline-start:4px solid ${statusColor}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <strong>#${escapeHtml(r.number)} — ${escapeHtml(r.customer_name || 'زبون')}</strong>
             <span style="color:${statusColor};font-weight:700">${statusLabel}</span>

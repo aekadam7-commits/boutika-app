@@ -93,7 +93,7 @@ function showSyncStatus() {
     <div class="cart-item"><span>الوضع:</span><strong>${DB.mode().current || '—'}</strong></div>
     <div class="cart-item"><span>الاتصال:</span><strong>${Sync.ws && Sync.ws.readyState === 1 ? '🟢 متصل' : '🔴 غير متصل'}</strong></div>
     <div class="cart-item"><span>الحالة:</span><strong>${Sync.state === 'synced' ? '✅ تمت المزامنة' : Sync.state === 'syncing' ? '🔄 جارٍ المزامنة' : Sync.state === 'conflict' ? '⚠️ تعارض' : '⏳ بانتظار الاتصال'}</strong></div>
-    <div class="cart-item"><span>آخر مزامنة:</span><strong>${Sync.lastSyncAt ? new Date(Sync.lastSyncAt).toLocaleTimeString() : '—'}</strong></div>
+    <div class="cart-item"><span>آخر مزامنة:</span><strong>${Sync.lastSyncAt ? new Date(Sync.lastSyncAt).toLocaleTimeString(BoutikI18n.locale()) : '—'}</strong></div>
     <div class="modal-actions"><button class="btn btn-danger" onclick="closeModal()">إغلاق</button></div>`);
 }
 
