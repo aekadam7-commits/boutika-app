@@ -117,7 +117,11 @@ function enterApp(user, fresh) {
   document.getElementById('app').classList.add('active');
   document.getElementById('currentUser').textContent = '👤 ' + user.username;
   const __sb = document.getElementById('subscriptionBtn');
-  if (__sb) __sb.classList.remove('hidden');
+  if (__sb) {
+    // التفعيل يتم في جهاز المضيف فقط: يُخفى زر 🔑 عند العميل
+    if (DB.mode().current === 'host') __sb.classList.remove('hidden');
+    else __sb.classList.add('hidden');
+  }
 
   if (typeof applyDarkMode === 'function') applyDarkMode();
   if (typeof loadShopName === 'function') loadShopName();
