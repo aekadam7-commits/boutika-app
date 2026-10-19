@@ -10,6 +10,8 @@ const ChangeLog = {
   SKIP: ['changelog', 'mode', 'i18n'],              // خاصة بكل جهاز ولا تُزامَن
   OBJECT_TABLES: ['settings', 'counters'],           // كائنات مفردة وليست جداول
   DEVICE_SETTINGS: ['scannerBeep', 'scannerVibrate', 'scannerAvoidDuplicate', 'scannerDuplicateInterval', 'scannerUsb', 'paperSize'],   // الوضع الليلي واللغة أصبحا مشتركين بين الأجهزة
+  // حقول رقمية تُزامَن كـ«فرق» لا كرقم نهائي: المخزون وأرصدة الزبائن والموردين
+  DELTA_FIELDS: { products: ['qty'], customers: ['balance'], suppliers: ['balance'] },
   KEEP_SYNCED_DAYS: 7,
   _applying: false,
   _pend: null,            // مفاتيح table:id التي لها تعديل محلي لم يُرسَل بعد (تُبنى أثناء applyMany)
@@ -63,6 +65,22 @@ const ChangeLog = {
     this.pending().forEach(e => { if (e && e.table && e.data) s.add(e.table + ':' + (e.data.id != null ? e.data.id : '__obj__')); });
     return s;
   },
+  // فرق الحقول الرقمية بين الصف السابق والجديد (أو null)
+  _deltas(table, prevJs, row) {
+    const fields = this.DELTA_FIELDS[table];
+    if (!fields) return null;
+    let pr; try { pr = JSON.parse(prevJs); } catch (e) { return null; }
+    const d = {};
+    fields.forEach(f => { if (typeof row[f] === 'number' && typeof pr[f] === 'number' && row[f] !== pr[f]) d[f] = row[f] - pr[f]; });
+    return Object.keys(d).length ? d : null;
+  },
+
+  // لاحقة تمنع تكرار أرقام الفواتير بين الأجهزة: الجهاز الفرعي فقط يضيف رمزه
+  numberSuffix() {
+    try { if (DB.mode().current === 'client') return '-' + String(this._deviceId()).slice(-3); } catch (e) {}
+    return '';
+  },
+
   _hasPending(table, id) { return !!(this._pend && this._pend.has(table + ':' + id)); },
 
   /* ---------- يُستدعى من خطاف التخزين عند كل كتابة ---------- */
@@ -99,7 +117,7 @@ const ChangeLog = {
         seen.add(id); next.set(id, [js, r.id]);
         if (r._updated_at === 0) return;                                  // صفوف افتراضية أولية لا تُرسَل
         const p = prev.get(id);
-        if (!p || p[0] !== js) entries.push(mk(r));
+        if (!p || p[0] !== js) { const en = mk(r); if (p) { const d = this._deltas(table, p[0], r); if (d) en.deltas = d; } entries.push(en); }
       });
       prev.forEach((v, id) => { if (!seen.has(id)) entries.push(mk({ id: v[1], _deleted: true, _updated_at: now })); });
       this._cache[table] = { src: newStr, map: next };
@@ -143,10 +161,10 @@ const ChangeLog = {
   },
 
   /* ---------- تطبيق تغيير قادم من جهاز آخر؛ يرجع true إن تغيّر شيء ---------- */
-  applyRemote(entry) {
+  applyRemote(entry, force) {
     if (!entry || !entry.table || !entry.data) return false;
     if (this.SKIP.indexOf(entry.table) !== -1) return false;
-    if (entry.deviceId && entry.deviceId === this._deviceId()) return false;   // تجاهل صدى تغييراتي
+    if (!force && entry.deviceId && entry.deviceId === this._deviceId()) return false;   // force: قيمة عدّلها الخادم لتغييري   // تجاهل صدى تغييراتي
     this._applying = true;
     try {
       if (this.OBJECT_TABLES.indexOf(entry.table) !== -1) return this._applyObject(entry);
@@ -163,7 +181,7 @@ const ChangeLog = {
         const remoteTs = row._updated_at != null ? row._updated_at : (entry.ts || 0);
         const local = idx !== undefined ? cur[idx] : null;
 
-        const lp = this._hasPending(entry.table, key);        // لي تعديل محلي لم يُرسَل لهذا السجل؟
+        const lp = !force && this._hasPending(entry.table, key);        // لي تعديل محلي لم يُرسَل لهذا السجل؟
         if (row._deleted) {
           if (local && (!lp || remoteTs >= (local._updated_at || 0))) { cur[idx] = null; index.delete(key); changed = true; }
           return;

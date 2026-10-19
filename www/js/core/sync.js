@@ -97,12 +97,12 @@ const Sync = {
           if (msg.type === 'ack') {
             if (msg.accepted && msg.accepted.length) ChangeLog.markSynced(msg.accepted);
             if (msg.rejected && msg.rejected.length) this.handleRejected(msg.rejected);
+            if (msg.adjusted && msg.adjusted.length) this.applyAdjusted(msg.adjusted);
             // لا نرفع seq من ack: قد يقفز فوق تغييرات أجهزة أخرى لم نسحبها بعد؛ يرتفع فقط بالسحب
             this._updateStateFromQueue();
             return;
           }
-          if (msg.type === 'change' && msg.entry) this.applyMany([msg.entry]);
-          if (msg.type === 'batch' && Array.isArray(msg.entries)) this.applyMany(msg.entries);
+          if (msg.type === 'change' || msg.type === 'batch') { this.syncSoon(); return; }   // السحب هو المسار الوحيد الذي يرفع seq بترتيب سليم
           if (msg.type === 'scan' && msg.barcode) {
             if (msg.from && msg.from === ChangeLog._deviceId()) return;
             if (typeof window.handleIncomingScan === 'function') window.handleIncomingScan(String(msg.barcode), msg.requestId || null);
@@ -142,12 +142,26 @@ const Sync = {
         if (e && e.seq > maxSeq) maxSeq = e.seq;
       });
     } finally { ChangeLog._pend = null; }
-    if (maxSeq) this._setSeq(maxSeq);
+    // seq لا يرتفع هنا: يحدده pull() فقط، وإلا نتخطى تغييرات لم تصلنا (مثلًا بعد رفض تعارض)
     if (settingsTouched) this._applySettingsUI();
     // الترتيب مهم: نحدّث الوردية الحالية أولًا ثم نعيد الرسم، وإلا تظهر بطاقة الوردية بحالتها القديمة
     try { if (typeof loadActiveShift === 'function' && typeof currentUser !== 'undefined' && currentUser) loadActiveShift(); } catch (_) {}
     if (n && typeof refreshAll === 'function') { try { refreshAll(); } catch (_) {} }
     this._updateStateFromQueue();
+    return n;
+  },
+
+  // الخادم طبّق «فرق» المخزون/الرصيد فوق قيمته الحالية: نتبنّى القيمة الصحيحة محليًا
+  applyAdjusted(list) {
+    let n = 0;
+    try {
+      ChangeLog._pend = ChangeLog._pendingSet();
+      (list || []).forEach(e => {
+        if (!e || !e.data || ChangeLog._hasPending(e.table, e.data.id)) return;   // لي تعديل لاحق معلّق: ردّه سيصحّح القيمة
+        try { if (ChangeLog.applyRemote(e, true)) n++; } catch (err) { console.warn('applyAdjusted:', err); }
+      });
+    } finally { ChangeLog._pend = null; }
+    if (n && typeof refreshAll === 'function') { try { refreshAll(); } catch (_) {} }
     return n;
   },
 
@@ -166,12 +180,18 @@ const Sync = {
     finally { this._connectingSync = false; this._updateStateFromQueue(); }
   },
 
+  syncSoon() {
+    if (this._inflight) { this._again = true; return; }
+    clearTimeout(this._soonT);
+    this._soonT = setTimeout(() => this.syncNow(), 30);
+  },
+
   async syncNow() {
     if (!this.running || this._inflight) return;
     if (!Net.online) { this._setState('offline'); return; }
     this._inflight = true;
     try { await this.pull(); await this.flush(); await this.pull(); }
-    finally { this._inflight = false; this._updateStateFromQueue(); }
+    finally { this._inflight = false; this._updateStateFromQueue(); if (this._again) { this._again = false; this.syncSoon(); } }
   },
 
   async seedOnce() { return; },
@@ -218,6 +238,7 @@ const Sync = {
       if (data.accepted) ChangeLog.markSynced(data.accepted);
       if (data.rejected) this.handleRejected(data.rejected);
       if (data.duplicates) ChangeLog.markSynced(data.duplicates);
+      if (data.adjusted && data.adjusted.length) this.applyAdjusted(data.adjusted);
       // لا نرفع seq هنا (انظر ack): السحب وحده يحرّكه
       return (data.accepted || []).length;
     } catch (e) { this._setState('offline', String(e)); return 0; }
