@@ -134,7 +134,7 @@ function savePurchase() {
 
   const counter = (DB.counters().purchase || 0) + 1;
   const prefix = DB.settings().purPrefix || 'PUR-';
-  const number = prefix + String(counter).padStart(5, '0');
+  const number = prefix + String(counter).padStart(5, '0') + (typeof ChangeLog !== 'undefined' && ChangeLog.numberSuffix ? ChangeLog.numberSuffix() : '');
 
   const purchase = {
     id: uuid(), number,

@@ -87,7 +87,7 @@ function confirmReservation() {
   const note = (document.getElementById('resNote').value || '').trim();
 
   const counter = (DB.counters().reservation || 0) + 1;
-  const number = 'RES-' + String(counter).padStart(5, '0');
+  const number = 'RES-' + String(counter).padStart(5, '0') + (typeof ChangeLog !== 'undefined' && ChangeLog.numberSuffix ? ChangeLog.numberSuffix() : '');
 
   const reservation = {
     id: uuid(), number,
@@ -152,7 +152,7 @@ function deliverReservation(id) {
 
   const settings = DB.settings();
   const counter = (DB.counters().invoice || 0) + 1;
-  const invoiceNumber = (settings.invPrefix || 'INV-') + String(counter).padStart(5, '0');
+  const invoiceNumber = (settings.invPrefix || 'INV-') + String(counter).padStart(5, '0') + (typeof ChangeLog !== 'undefined' && ChangeLog.numberSuffix ? ChangeLog.numberSuffix() : '');
 
   const invoice = {
     id: uuid(), number: invoiceNumber, type: 'sale',
