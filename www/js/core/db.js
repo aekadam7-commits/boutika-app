@@ -71,6 +71,7 @@ function initDB() {
       username: 'user',
       password: '1234',
       role: 'admin',
+      must_change: true,      // كلمة السر الافتراضية: تُشفَّر عند الإقلاع ويُطلب تغييرها
       created_at: __safeNow(),
       _updated_at: 0        // مستخدم افتراضي أولي: لا يُرسَل ويستبدله مستخدمو المضيف
     };
