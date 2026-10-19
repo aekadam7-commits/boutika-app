@@ -4,23 +4,22 @@
 
 function buildNav() {
   const tabs = [
-    { id: 'dashboard', label: '📊 الرئيسية', roles: ['admin','manager','cashier'] },
-    { id: 'pos', label: '💰 البيع', roles: ['admin','manager','cashier'] },
-    { id: 'products', label: '📦 المنتجات', roles: ['admin','manager','stock'] },
-    { id: 'customers', label: '👥 الزبائن', roles: ['admin','manager','cashier'] },
-    { id: 'suppliers', label: '🚚 الموردين', roles: ['admin','manager','stock'] },
-    { id: 'purchases', label: '🛒 المشتريات', roles: ['admin','manager','stock'] },
-    { id: 'invoices', label: '🧾 فواتير البيع', roles: ['admin','manager','cashier'] },
-    { id: 'inventory', label: '📋 الجرد', roles: ['admin','manager','stock'] },
-    { id: 'expenses', label: '💰 المصاريف', roles: ['admin','manager'] },
-    { id: 'reservations', label: '📦 الحجوزات', roles: ['admin','manager','cashier'] },
-    { id: 'reports', label: '📈 التقارير', roles: ['admin','manager'] },
-    { id: 'settings', label: '⚙️ الإعدادات', roles: ['admin'] },
-    { id: 'users', label: '👤 المستخدمون', roles: ['admin'] },
-    { id: 'contact', label: '📞 تواصل معنا', roles: ['admin','manager','cashier','stock'] }
+    { id: 'dashboard', label: '📊 الرئيسية' },
+    { id: 'pos', label: '💰 البيع' },
+    { id: 'products', label: '📦 المنتجات' },
+    { id: 'customers', label: '👥 الزبائن' },
+    { id: 'suppliers', label: '🚚 الموردين' },
+    { id: 'purchases', label: '🛒 المشتريات' },
+    { id: 'invoices', label: '🧾 فواتير البيع' },
+    { id: 'inventory', label: '📋 الجرد' },
+    { id: 'expenses', label: '💰 المصاريف' },
+    { id: 'reservations', label: '📦 الحجوزات' },
+    { id: 'reports', label: '📈 التقارير' },
+    { id: 'settings', label: '⚙️ الإعدادات' },
+    { id: 'users', label: '👤 المستخدمون' },
+    { id: 'contact', label: '📞 تواصل معنا' }
   ];
-  const role = currentUser ? currentUser.role : 'cashier';
-  const allowed = tabs.filter(t => t.roles.includes(role));
+  const allowed = tabs.filter(t => Perms.canTab(t.id));       // الصلاحيات من Perms.TAB_ROLES (رفض افتراضي)
   const nav = document.getElementById('mainNav');
   if (!nav) return;
   nav.innerHTML = allowed
@@ -29,6 +28,7 @@ function buildNav() {
 }
 
 function switchTab(tab) {
+  if (!Perms.canTab(tab)) { Perms.deny(); return; }          // لا نكتفي بإخفاء الزر
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   const target = document.getElementById('tab-' + tab);
   if (target) target.classList.remove('hidden');
@@ -139,16 +139,20 @@ window.addEventListener('load', () => {
     if (typeof applyDarkMode === 'function') applyDarkMode();
     if (typeof updateNetStatus === 'function') updateNetStatus();
 
+    const migrated = Security.migrateUsers();                    // تشفير كلمات السر القديمة
     const mode = DB.mode().current;
     if (mode) {
       const ms = document.getElementById('modeScreen');
       if (ms) ms.classList.add('hidden');
       if (typeof Net !== 'undefined' && Net.current) Net.current();
       afterModeChosen();
-      if (typeof tryAutoLogin === 'function') tryAutoLogin();
+      migrated.then(() => { if (typeof tryAutoLogin === 'function') tryAutoLogin(); });
     }
   } catch (e) {
     console.error('load error:', e);
   }
   console.log('🚀 Boutik v4 جاهز');
 });
+
+// حراسة الإجراءات الحساسة (حذف/إعدادات/مستخدمون/استعادة) بعد تحميل كل الوحدات
+Perms.install();
