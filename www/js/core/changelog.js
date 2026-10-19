@@ -9,9 +9,10 @@
 const ChangeLog = {
   SKIP: ['changelog', 'mode', 'i18n'],              // خاصة بكل جهاز ولا تُزامَن
   OBJECT_TABLES: ['settings', 'counters'],           // كائنات مفردة وليست جداول
-  DEVICE_SETTINGS: ['scannerBeep', 'scannerVibrate', 'scannerAvoidDuplicate', 'scannerDuplicateInterval', 'scannerUsb', 'darkMode', 'paperSize'],
+  DEVICE_SETTINGS: ['scannerBeep', 'scannerVibrate', 'scannerAvoidDuplicate', 'scannerDuplicateInterval', 'scannerUsb', 'paperSize'],   // الوضع الليلي واللغة أصبحا مشتركين بين الأجهزة
   KEEP_SYNCED_DAYS: 7,
   _applying: false,
+  _pend: null,            // مفاتيح table:id التي لها تعديل محلي لم يُرسَل بعد (تُبنى أثناء applyMany)
   _cache: {},
 
   _uuid() { return (typeof __safeUuid === 'function') ? __safeUuid() : String(Date.now()) + Math.random(); },
@@ -55,6 +56,14 @@ const ChangeLog = {
   },
 
   record() { /* قديم: التسجيل يتم الآن عبر onWrite */ },
+
+  // مفاتيح السجلات التي لها تعديل محلي معلّق: فقط هذه تُقارَن بالتوقيت، وغيرها يتبع ترتيب الخادم
+  _pendingSet() {
+    const s = new Set();
+    this.pending().forEach(e => { if (e && e.table && e.data) s.add(e.table + ':' + (e.data.id != null ? e.data.id : '__obj__')); });
+    return s;
+  },
+  _hasPending(table, id) { return !!(this._pend && this._pend.has(table + ':' + id)); },
 
   /* ---------- يُستدعى من خطاف التخزين عند كل كتابة ---------- */
   onWrite(key, oldStr, newStr) {
@@ -154,12 +163,13 @@ const ChangeLog = {
         const remoteTs = row._updated_at != null ? row._updated_at : (entry.ts || 0);
         const local = idx !== undefined ? cur[idx] : null;
 
+        const lp = this._hasPending(entry.table, key);        // لي تعديل محلي لم يُرسَل لهذا السجل؟
         if (row._deleted) {
-          if (local && remoteTs >= (local._updated_at || 0)) { cur[idx] = null; index.delete(key); changed = true; }
+          if (local && (!lp || remoteTs >= (local._updated_at || 0))) { cur[idx] = null; index.delete(key); changed = true; }
           return;
         }
         if (local) {
-          if (remoteTs >= (local._updated_at || 0) && JSON.stringify(local) !== JSON.stringify(row)) { cur[idx] = row; changed = true; }
+          if ((!lp || remoteTs >= (local._updated_at || 0)) && JSON.stringify(local) !== JSON.stringify(row)) { cur[idx] = row; changed = true; }
         } else {
           index.set(key, cur.length); cur.push(row); changed = true;
         }
@@ -189,7 +199,7 @@ const ChangeLog = {
         merged[k] = (typeof remote[k] === 'number') ? Math.max(+local[k] || 0, remote[k]) : remote[k];
       });
     } else {                                          // الإعدادات: الأحدث يفوز، دون إعدادات الجهاز الخاصة
-      if (ts < this._getObjTs(table)) return false;
+      if (this._hasPending(table, '__obj__') && ts < this._getObjTs(table)) return false;   // نتجاهل الأقدم فقط إن كان عندي تعديل غير مُرسَل
       Object.keys(remote).forEach(k => { if (this.DEVICE_SETTINGS.indexOf(k) === -1) merged[k] = remote[k]; });
     }
     if (JSON.stringify(merged) === JSON.stringify(local)) return false;

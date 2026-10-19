@@ -97,7 +97,7 @@ const Sync = {
           if (msg.type === 'ack') {
             if (msg.accepted && msg.accepted.length) ChangeLog.markSynced(msg.accepted);
             if (msg.rejected && msg.rejected.length) this.handleRejected(msg.rejected);
-            if (msg.seq) this._setSeq(msg.seq);
+            // لا نرفع seq من ack: قد يقفز فوق تغييرات أجهزة أخرى لم نسحبها بعد؛ يرتفع فقط بالسحب
             this._updateStateFromQueue();
             return;
           }
@@ -133,16 +133,28 @@ const Sync = {
   },
 
   applyMany(entries) {
-    let n = 0, maxSeq = 0;
-    (entries || []).forEach(e => {
-      try { if (ChangeLog.applyRemote(e)) n++; } catch (err) { console.warn('applyRemote:', err); }
-      if (e && e.seq > maxSeq) maxSeq = e.seq;
-    });
+    entries = entries || [];
+    let n = 0, maxSeq = 0, settingsTouched = false;
+    if (entries.length) { try { ChangeLog._pend = ChangeLog._pendingSet(); } catch (_) { ChangeLog._pend = null; } }
+    try {
+      entries.forEach(e => {
+        try { if (ChangeLog.applyRemote(e)) { n++; if (e && e.table === 'settings') settingsTouched = true; } } catch (err) { console.warn('applyRemote:', err); }
+        if (e && e.seq > maxSeq) maxSeq = e.seq;
+      });
+    } finally { ChangeLog._pend = null; }
     if (maxSeq) this._setSeq(maxSeq);
-    if (n && typeof refreshAll === 'function') { try { refreshAll(); } catch (_) {} }
+    if (settingsTouched) this._applySettingsUI();
+    // الترتيب مهم: نحدّث الوردية الحالية أولًا ثم نعيد الرسم، وإلا تظهر بطاقة الوردية بحالتها القديمة
     try { if (typeof loadActiveShift === 'function' && typeof currentUser !== 'undefined' && currentUser) loadActiveShift(); } catch (_) {}
+    if (n && typeof refreshAll === 'function') { try { refreshAll(); } catch (_) {} }
     this._updateStateFromQueue();
     return n;
+  },
+
+  // الوضع الليلي واللغة القادمان من جهاز آخر
+  _applySettingsUI() {
+    try { if (typeof applyDarkMode === 'function') applyDarkMode(); } catch (_) {}
+    try { if (typeof BoutikI18n !== 'undefined' && BoutikI18n.syncFromSettings) BoutikI18n.syncFromSettings(); } catch (_) {}
   },
 
   onRemoteChange(entry) { return this.applyMany([entry]); },
@@ -206,7 +218,7 @@ const Sync = {
       if (data.accepted) ChangeLog.markSynced(data.accepted);
       if (data.rejected) this.handleRejected(data.rejected);
       if (data.duplicates) ChangeLog.markSynced(data.duplicates);
-      if (data.seq) this._setSeq(data.seq);
+      // لا نرفع seq هنا (انظر ack): السحب وحده يحرّكه
       return (data.accepted || []).length;
     } catch (e) { this._setState('offline', String(e)); return 0; }
   },

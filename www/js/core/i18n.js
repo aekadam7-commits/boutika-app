@@ -236,9 +236,20 @@ const BoutikI18n = {
   },
 
   /* ---------- اللغة ---------- */
-  setLang(l) {
+  // تأتي اللغة من إعدادات المحل المشتركة (تُزامَن بين الأجهزة)
+  syncFromSettings() {
+    try {
+      const l = (DB.settings() || {}).language;
+      if (l && ['ar', 'fr', 'en'].includes(l) && l !== this.lang) this.setLang(l, true);
+    } catch (e) {}
+  },
+
+  setLang(l, fromRemote) {
     if (!['ar', 'fr', 'en'].includes(l)) l = 'ar';
     this.lang = l;
+    if (!fromRemote) {                       // تغيير محلي: يُسجَّل في الإعدادات المشتركة فيصل للأجهزة الأخرى
+      try { const s = DB.settings(); if (s && s.initialized && s.language !== l) { s.language = l; DB.setObj('settings', s); } } catch (e) {}
+    }
     try { DB.setObj('i18n', { lang: l }); } catch {}
     try { localStorage.setItem('boutika_lang', l); } catch {}
     document.querySelectorAll('select.lang-sel').forEach(x => { x.value = l; });
@@ -263,7 +274,7 @@ const BoutikI18n = {
 
   init() {
     let l = 'ar';
-    try { l = (DB.getObj('i18n') || {}).lang || localStorage.getItem('boutika_lang') || 'ar'; }
+    try { l = (DB.settings() || {}).language || (DB.getObj('i18n') || {}).lang || localStorage.getItem('boutika_lang') || 'ar'; }
     catch { try { l = localStorage.getItem('boutika_lang') || 'ar'; } catch {} }
     this.lang = ['ar', 'fr', 'en'].includes(l) ? l : 'ar';
     this._ready = true;
