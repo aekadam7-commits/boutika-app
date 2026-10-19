@@ -113,7 +113,7 @@
     <div class="user-info">
       <span id="shiftBadge" class="shift-badge hidden">🟢 وردية</span>
       <span id="netStatus" class="net-status"></span><span id="syncStatus" class="net-status" title="حالة المزامنة"></span>
-      <span id="currentUser"></span>
+      <span id="currentUser" onclick="openChangePasswordModal()" style="cursor:pointer" title="تغيير كلمة السر"></span>
       <button onclick="openShareModal()" title="مشاركة التطبيق">📤</button>
       <button onclick="toggleDark()" title="الوضع الليلي">🌓</button>
       <select id="languageSelect" class="lang-sel" title="Language" data-no-i18n>
@@ -511,6 +511,7 @@
 <script type="boutika/defer" src="js/i18n/en.js"></script>
 <script type="boutika/defer" src="js/core/store.js"></script>
 <script type="boutika/defer" src="js/core/db.js"></script>
+<script type="boutika/defer" src="js/core/security.js"></script>
 <script type="boutika/defer" src="js/core/net.js"></script>
 <script type="boutika/defer" src="js/core/sync.js"></script>
 <script type="boutika/defer" src="js/core/changelog.js"></script>
