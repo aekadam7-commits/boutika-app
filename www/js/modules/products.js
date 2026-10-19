@@ -153,6 +153,7 @@ function onProductBarcodeChange(barcode) {
     infoEl.innerHTML = `<div style="background:#d4edda;color:#155724;padding:10px;border-radius:8px;margin:8px 0;font-size:13px">
       ✅ باركود جديد — أدخل بيانات المنتج
     </div>`;
+    if (typeof catalogSuggest === 'function') catalogSuggest(barcode, infoEl);   // بحث في قاعدة الباركودات
   }
 }
 
