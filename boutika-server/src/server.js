@@ -135,7 +135,7 @@ function sendScan(obj, except) {
   return true;
 }
 function acceptEntries(list, except) {
-  const accepted = [], rejected = [], duplicates = [];
+  const accepted = [], rejected = [], duplicates = [], adjusted = [];
   for (const raw of (list || []).slice(0, MAX_BATCH)) {
     if (!raw || !raw.id || !raw.table || !raw.data) continue;
     const e = { ...raw };
@@ -151,6 +151,21 @@ function acceptEntries(list, except) {
     const logicalId = e.data && e.data.id != null ? e.data.id : '__obj__';
     const current = storage.getLatest(e.table, logicalId);
     const baseSeq = Number.isFinite(+e.baseSeq) ? +e.baseSeq : 0;
+
+    // حقول رقمية بصيغة «فرق» (مخزون/رصيد): نطبّق الفرق فوق القيمة الحالية بدل رفض التعارض،
+    // فلا يضيع بيع جهاز بسبب بيع جهاز آخر (والخادم ذو خيط واحد فالعملية ذرّية)
+    if (e.deltas && typeof e.deltas === 'object' && current && current.data && !current.data._deleted && !(e.data && e.data._deleted)) {
+      const nd = { ...current.data, ...e.data };
+      Object.keys(e.deltas).forEach(f => { const d = +e.deltas[f]; if (Number.isFinite(d)) nd[f] = (+current.data[f] || 0) + d; });
+      nd._updated_at = Math.max(+current.data._updated_at || 0, +(e.data && e.data._updated_at) || 0);
+      const changed = JSON.stringify(nd) !== JSON.stringify(e.data);
+      e.data = nd;
+      const saved = storage.append(e);
+      accepted.push(saved);
+      if (changed) adjusted.push(saved);
+      continue;
+    }
+
     if (current && current.seq > baseSeq && current.deviceId !== e.deviceId) {
       rejected.push({ id: e.id, reason: 'conflict', current });
       continue;
@@ -159,7 +174,7 @@ function acceptEntries(list, except) {
     accepted.push(storage.append(e));
   }
   if (accepted.length) broadcast({ type: 'batch', entries: accepted }, except);
-  return { accepted, rejected, duplicates, seq: storage.getMeta().seq };
+  return { accepted, rejected, duplicates, adjusted, seq: storage.getMeta().seq };
 }
 
 /* ---------- الواجهة الثابتة (نفس مجلد www) ---------- */
@@ -173,7 +188,7 @@ app.get('/api/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.post('/api/sync/push', guard, (req, res) => {
   const result = acceptEntries(req.body && req.body.entries);
-  res.json({ ok: true, count: result.accepted.length, accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: meta.seq });
+  res.json({ ok: true, count: result.accepted.length, accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, adjusted: result.adjusted, seq: meta.seq });
 });
 app.get('/api/sync/pull', guard, (req, res) => {
   res.json({ ok: true, entries: storage.since(+req.query.since || 0), seq: meta.seq });
@@ -286,7 +301,7 @@ wss.on('connection', ws => {
       }
       if (d.type === 'push' && Array.isArray(d.entries)) {
         const result = acceptEntries(d.entries, ws);
-        try { ws.send(JSON.stringify({ type: 'ack', accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, seq: result.seq })); } catch (_) {}
+        try { ws.send(JSON.stringify({ type: 'ack', accepted: result.accepted.map(e => e.id), rejected: result.rejected, duplicates: result.duplicates, adjusted: result.adjusted, seq: result.seq })); } catch (_) {}
       }
       if (d.type === 'scan' && d.barcode) {
         const delivered = sendScan({ type: 'scan', barcode: String(d.barcode), from: d.from, targetDeviceId: d.targetDeviceId || null, requestId: d.requestId || null }, ws);
