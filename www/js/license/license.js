@@ -348,6 +348,13 @@ function saveDeviceQR() {
 }
 
 function showSubscription() {
+  // العميل لا يُفعَّل ولا يملك تجربة: الترخيص يُدار من جهاز المضيف فقط
+  try {
+    if (DB.mode().current === 'client') {
+      if (typeof toast === 'function') toast('🔑 التفعيل يتم من جهاز المضيف فقط');
+      return;
+    }
+  } catch (e) {}
   const st = licenseState();
   const screen = document.getElementById('licenseScreen');
   if (!screen) return;
