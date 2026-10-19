@@ -39,6 +39,26 @@ async function doLogin() {
       return;
     }
 
+    // الجهاز الفرعي يجب أن يسحب آخر تحديثات المستخدمين قبل التحقق من كلمة السر.
+    // لا نعتمد على Sync.start داخل enterApp لأنه لا يبدأ إلا بعد نجاح تسجيل الدخول.
+    if (mode === 'client') {
+      try {
+        if (typeof Net === 'undefined' || !Net.host || !Net.host.ip || typeof Sync === 'undefined') {
+          throw new Error('لم يتم تحديد الخادم');
+        }
+        const url = Net.baseUrl() || 'http://localhost:8787';
+        const response = await fetch(url + '/api/sync/pull?since=' + Sync._getSeq(), { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const payload = await response.json();
+        Sync.applyMany(payload.entries || []);
+        if (payload.seq) Sync._setSeq(payload.seq);
+      } catch (syncError) {
+        console.error('Pre-login user sync failed:', syncError);
+        if (errEl) errEl.textContent = '❌ تعذر تحديث بيانات المستخدمين من الخادم. تحقق من الاتصال ثم أعد المحاولة.';
+        return; // لا نسمح بتسجيل الدخول بكلمة سر قديمة عند تعذر تحديث الحساب.
+      }
+    }
+
     const wait = Security.guard.remainingMs();
     if (wait > 0) {
       if (errEl) errEl.textContent = '⏳ محاولات كثيرة. انتظر ' + Math.ceil(wait / 1000) + ' ثانية';
