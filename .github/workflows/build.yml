@@ -9,6 +9,14 @@ permissions:
 jobs:
   windows-exe:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            script: build:win
+          - arch: ia32
+            script: build:win32
 
     steps:
       - uses: actions/checkout@v4
@@ -26,11 +34,43 @@ jobs:
 
       - name: Build EXE
         working-directory: desktop
-        run: npm run build:win
+        run: npm run ${{ matrix.script }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: boutika-windows
+          name: boutika-windows-${{ matrix.arch }}
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+
+  windows7-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Prepare desktop
+        run: node tools/prepare-desktop.js
+
+      - name: Install (Electron 22 = آخر إصدار يدعم Windows 7/8)
+        working-directory: desktop
+        run: |
+          npm install
+          npm install --save-dev electron@22.3.27
+
+      - name: Build EXE (Windows 7 - x64 + ia32)
+        working-directory: desktop
+        run: npm run build:win7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boutika-windows7
           path: desktop/dist/*.exe
           if-no-files-found: error
 
@@ -92,7 +132,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [windows-exe, android-apk]
+    needs: [windows-exe, windows7-exe, android-apk]
     runs-on: ubuntu-latest
 
     steps:
@@ -105,7 +145,8 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: Boutika Build ${{ github.run_number }}
           files: |
-            out/boutika-windows/*.exe
+            out/boutika-windows-*/*.exe
+            out/boutika-windows7/*.exe
             out/boutika-android/Boutika.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
