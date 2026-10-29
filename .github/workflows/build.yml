@@ -9,6 +9,9 @@ permissions:
 jobs:
   windows-exe:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -28,49 +31,19 @@ jobs:
       - name: Prepare desktop
         run: node tools/prepare-desktop.js
 
-      - name: Install
+      - name: Install (Electron 22 = يعمل على Windows 7/8/10/11، 32 و 64 بت)
         working-directory: desktop
-        run: npm install
+        run: |
+          npm install
+          npm install --save-dev electron@22.3.27
 
-      - name: Build EXE
+      - name: Build EXE (${{ matrix.arch }})
         working-directory: desktop
         run: npm run ${{ matrix.script }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: boutika-windows-${{ matrix.arch }}
-          path: desktop/dist/*.exe
-          if-no-files-found: error
-
-  windows7-exe:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Prepare desktop
-        run: node tools/prepare-desktop.js
-
-      - name: Install (Electron 22 = آخر إصدار يدعم Windows 7/8)
-        working-directory: desktop
-        run: |
-          npm install
-          npm install --save-dev electron@22.3.27
-
-      - name: Build EXE (Windows 7 - x64 + ia32)
-        working-directory: desktop
-        run: npm run build:win7
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: boutika-windows7
           path: desktop/dist/*.exe
           if-no-files-found: error
 
@@ -132,7 +105,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [windows-exe, windows7-exe, android-apk]
+    needs: [windows-exe, android-apk]
     runs-on: ubuntu-latest
 
     steps:
@@ -146,7 +119,6 @@ jobs:
           name: Boutika Build ${{ github.run_number }}
           files: |
             out/boutika-windows-*/*.exe
-            out/boutika-windows7/*.exe
             out/boutika-android/Boutika.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
