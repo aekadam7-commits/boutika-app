@@ -9,6 +9,9 @@
     "prepare-app": "node ../tools/prepare-desktop.js",
     "start": "electron .",
     "build:win": "electron-builder --win --x64 --publish never",
+    "build:win32": "electron-builder --win --ia32 --publish never",
+    "build:win7": "electron-builder --win --x64 --ia32 --publish never -c.nsis.artifactName=Boutika-Setup-Win7-${version}-${arch}.${ext}",
+    "build:win:all": "electron-builder --win --x64 --ia32 --publish never",
     "build:linux": "electron-builder --linux --publish never"
   },
   "build": {
@@ -32,7 +35,8 @@
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "ia32"
           ]
         }
       ],
@@ -51,7 +55,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "artifactName": "Boutika-Setup-${version}.${ext}"
+      "artifactName": "Boutika-Setup-${version}-${arch}.${ext}"
     }
   },
   "dependencies": {
